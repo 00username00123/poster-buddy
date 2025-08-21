@@ -41,31 +41,31 @@ export function UploadDialog({ movies, setMovies }: UploadDialogProps) {
         if (!parts) continue;
         
         const name = parts[1];
-        const type = parts[2];
+        const type = parts[2] as 'poster' | 'logo' | 'info';
 
         if (!fileGroups[name]) {
             fileGroups[name] = {};
         }
 
-        if (type === 'poster') fileGroups[name].poster = file;
-        if (type === 'logo') fileGroups[name].logo = file;
-        if (type === 'info') fileGroups[name].info = file;
+        fileGroups[name][type] = file;
     }
 
     for (const name in fileGroups) {
         const group = fileGroups[name];
         if (group.poster && group.info) {
             const infoText = await group.info.text();
-            const info: Record<string, string> = Object.fromEntries(
-                infoText.split('\n').filter(line => line.includes(':')).map(line => {
-                    const [key, ...value] = line.split(': ');
-                    const formattedKey = key.toLowerCase().replace(/\s/g, '');
-                    return [formattedKey, value.join(': ')];
-                })
-            );
+            const info: Record<string, string> = {};
+            infoText.split('\n').forEach(line => {
+                const parts = line.split(':');
+                if (parts.length > 1) {
+                    const key = parts[0].toLowerCase().replace(/\s/g, '');
+                    const value = parts.slice(1).join(':').trim();
+                    info[key] = value;
+                }
+            });
 
             const newMovie: Movie = {
-                id: (newMovies[newMovies.length -1]?.id ?? 0) + 1,
+                id: (newMovies.length > 0 ? Math.max(...newMovies.map(m => m.id)) : 0) + 1,
                 name: info.name || name.replace(/_/g, ' '),
                 posterUrl: URL.createObjectURL(group.poster),
                 logoUrl: group.logo ? URL.createObjectURL(group.logo) : 'https://placehold.co/400x150.png',
