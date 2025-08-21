@@ -22,7 +22,16 @@ export function PosterView({ movie, movieIndex, totalMovies }: PosterViewProps) 
         />
       </div>
       <div className="flex flex-col">
-        <h1 className="text-4xl font-bold">{movie.name}</h1>
+        <div className="mb-4">
+          <Image 
+            src="https://placehold.co/400x150.png" 
+            alt={`${movie.name} logo`}
+            width={400}
+            height={150}
+            data-ai-hint="movie logo"
+            className="object-contain"
+          />
+        </div>
         <p className="text-muted-foreground mb-4">{`${movieIndex + 1} of ${totalMovies}`}</p>
         <div className="space-y-4 border rounded-md p-4 text-sm text-muted-foreground">
           <p>{movie.description}</p>
