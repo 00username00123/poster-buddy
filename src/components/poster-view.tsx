@@ -45,9 +45,6 @@ export function PosterView({ movie, movieIndex, totalMovies }: PosterViewProps) 
             <p><strong>Rating:</strong> {movie.rating}</p>
           </div>
         </div>
-        <div className="mt-4 p-4 border border-dashed rounded-md text-sm text-muted-foreground">
-          <p><strong>Demo Mode:</strong> Upload your own movie posters and text files to replace these samples. Use the format &lt;movie&gt;_poster.png, &lt;movie&gt;_logo.png, and &lt;movie&gt;_info.txt.</p>
-        </div>
       </div>
     </>
   );
