@@ -18,13 +18,15 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useLocalStorage } from "@/hooks/use-local-storage";
+import { useFirestore } from "@/hooks/use-firestore";
 import { Movie, initialMovies } from "@/lib/data";
 import { Film, Trash2, Home } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { addDoc, deleteDoc, doc, updateDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 export default function ManagePage() {
-  const [movies, setMovies] = useLocalStorage<Movie[]>("movies", initialMovies);
+  const { movies, setMovies, addMovie, updateMovie, deleteMovie } = useFirestore<Movie>("movies", initialMovies);
   const [editingMovie, setEditingMovie] = useState<Movie | null>(null);
   const { toast } = useToast();
 
@@ -36,9 +38,9 @@ export default function ManagePage() {
     setEditingMovie(null);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!editingMovie) return;
-    setMovies(movies.map((m) => (m.id === editingMovie.id ? editingMovie : m)));
+    await updateMovie(editingMovie.id, editingMovie);
     setEditingMovie(null);
     toast({
       title: "Movie Saved",
@@ -46,8 +48,8 @@ export default function ManagePage() {
     });
   };
 
-  const handleDelete = (movieToDelete: Movie) => {
-    setMovies(movies.filter((m) => m.id !== movieToDelete.id));
+  const handleDelete = async (movieToDelete: Movie) => {
+    await deleteMovie(movieToDelete.id);
     toast({
       title: "Movie Deleted",
       description: `${movieToDelete.name} has been removed.`,

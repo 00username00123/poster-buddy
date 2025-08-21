@@ -7,11 +7,11 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { PosterView } from "@/components/poster-view";
 import { Movie, initialMovies } from "@/lib/data";
 import { UploadDialog } from "@/components/upload-dialog";
-import { useLocalStorage } from "@/hooks/use-local-storage";
+import { useFirestore } from "@/hooks/use-firestore";
 import { Film } from "lucide-react";
 
 export default function Home() {
-  const [movies, setMovies] = useLocalStorage<Movie[]>("movies", initialMovies);
+  const { movies, addMovie } = useFirestore<Movie[]>("movies", initialMovies);
   const [currentIndex, setCurrentIndex] = useState(0);
 
   const goToPrevious = () => {
@@ -59,7 +59,7 @@ export default function Home() {
             <Link href="/manage">
               <Button variant="outline">Manage Posters</Button>
             </Link>
-            <UploadDialog movies={movies} setMovies={setMovies} />
+            <UploadDialog movies={movies} addMovie={addMovie} />
           </div>
         </div>
       </header>

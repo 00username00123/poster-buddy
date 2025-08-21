@@ -1,5 +1,5 @@
 export interface Movie {
-  id: number;
+  id: string;
   name: string;
   posterUrl: string;
   logoUrl: string;
@@ -14,7 +14,7 @@ export interface Movie {
 
 export const initialMovies: Movie[] = [
   {
-    id: 1,
+    id: "1",
     name: "The Last Guardian",
     posterUrl: "https://placehold.co/600x900/a31621/ffffff.png",
     logoUrl: "https://placehold.co/400x150/000000/ffffff.png&text=The+Last+Guardian",
@@ -27,7 +27,7 @@ export const initialMovies: Movie[] = [
     posterAiHint: "sci-fi warrior poster",
   },
   {
-    id: 2,
+    id: "2",
     name: "Cybernetic City",
     posterUrl: "https://placehold.co/600x900/a31621/ffffff.png",
     logoUrl: "https://placehold.co/400x150/000000/ffffff.png&text=Cybernetic+City",
@@ -40,7 +40,7 @@ export const initialMovies: Movie[] = [
     posterAiHint: "cyberpunk poster",
   },
   {
-    id: 3,
+    id: "3",
     name: "The Last Dragon",
     posterUrl: "https://placehold.co/600x900/a31621/ffffff.png",
     logoUrl: "https://placehold.co/400x150/000000/ffffff.png&text=The+Last+Dragon",

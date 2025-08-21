@@ -18,10 +18,10 @@ import type { Movie } from '@/lib/data';
 
 interface UploadDialogProps {
     movies: Movie[];
-    setMovies: (value: Movie[] | ((val: Movie[]) => Movie[])) => void;
+    addMovie: (movie: Omit<Movie, 'id'>) => Promise<void>;
 }
 
-export function UploadDialog({ movies, setMovies }: UploadDialogProps) {
+export function UploadDialog({ movies, addMovie }: UploadDialogProps) {
   const [open, setOpen] = useState(false);
   const [files, setFiles] = useState<FileList | null>(null);
 
@@ -33,7 +33,6 @@ export function UploadDialog({ movies, setMovies }: UploadDialogProps) {
     event.preventDefault();
     if (!files) return;
 
-    const newMovies: Movie[] = [];
     const fileGroups: Record<string, { poster?: File, logo?: File, info?: File }> = {};
 
     for (const file of Array.from(files)) {
@@ -73,10 +72,7 @@ export function UploadDialog({ movies, setMovies }: UploadDialogProps) {
             });
             info.description = descriptionParts.join('\n');
 
-            const nextId = (movies.length > 0 ? Math.max(...movies.map(m => m.id)) : 0) + newMovies.length + 1;
-
-            const newMovie: Movie = {
-                id: nextId,
+            const newMovie: Omit<Movie, 'id'> = {
                 name: info.name || name.replace(/_/g, ' '),
                 posterUrl: URL.createObjectURL(group.poster),
                 logoUrl: group.logo ? URL.createObjectURL(group.logo) : 'https://placehold.co/400x150/000000/ffffff.png&text=%20',
@@ -88,11 +84,10 @@ export function UploadDialog({ movies, setMovies }: UploadDialogProps) {
                 rating: info.rating || '',
                 posterAiHint: `movie poster for ${name}`,
             };
-            newMovies.push(newMovie);
+            await addMovie(newMovie);
         }
     }
     
-    setMovies(prevMovies => [...prevMovies, ...newMovies]);
     setOpen(false);
     setFiles(null);
   };
