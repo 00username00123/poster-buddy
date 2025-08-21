@@ -61,7 +61,7 @@ export function UploadDialog({ movies, setMovies }: UploadDialogProps) {
             let currentKey = 'description'; 
 
             lines.forEach(line => {
-                const-parts = line.split(':');
+                const parts = line.split(':');
                 if (parts.length > 1) {
                     const key = parts[0].toLowerCase().replace(/\s/g, '');
                     const value = parts.slice(1).join(':').trim();
