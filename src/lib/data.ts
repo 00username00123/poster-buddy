@@ -13,7 +13,7 @@ export interface Movie {
   posterAiHint: string;
 }
 
-export const movies: Movie[] = [
+export const initialMovies: Movie[] = [
   {
     id: 1,
     name: "The Last Guardian",
@@ -57,5 +57,3 @@ export const movies: Movie[] = [
     posterAiHint: "fantasy poster",
   },
 ];
-
-export const CYCLE_INTERVAL = 7000;
