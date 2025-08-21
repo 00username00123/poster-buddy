@@ -24,7 +24,7 @@ export function PosterView({ movie, movieIndex, totalMovies }: PosterViewProps) 
       <div className="flex flex-col">
         <div className="mb-4 flex justify-center">
           <Image 
-            src="https://placehold.co/400x150.png" 
+            src={movie.logoUrl} 
             alt={`${movie.name} logo`}
             width={400}
             height={150}

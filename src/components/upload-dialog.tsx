@@ -37,24 +37,27 @@ export function UploadDialog({ movies, setMovies }: UploadDialogProps) {
     const fileGroups: Record<string, { poster?: File, logo?: File, info?: File }> = {};
 
     for (const file of Array.from(files)) {
-        const [name, type] = file.name.split(/_(poster|logo|info)\./);
-        if (!name || !type) continue;
+        const parts = file.name.match(/(.+?)_(poster|logo|info)\.\w+$/);
+        if (!parts) continue;
+        
+        const name = parts[1];
+        const type = parts[2];
 
         if (!fileGroups[name]) {
             fileGroups[name] = {};
         }
 
-        if (type.startsWith('poster')) fileGroups[name].poster = file;
-        if (type.startsWith('logo')) fileGroups[name].logo = file;
-        if (type.startsWith('info')) fileGroups[name].info = file;
+        if (type === 'poster') fileGroups[name].poster = file;
+        if (type === 'logo') fileGroups[name].logo = file;
+        if (type === 'info') fileGroups[name].info = file;
     }
 
     for (const name in fileGroups) {
         const group = fileGroups[name];
         if (group.poster && group.info) {
             const infoText = await group.info.text();
-            const info: Partial<Movie> = Object.fromEntries(
-                infoText.split('\n').map(line => {
+            const info: Record<string, string> = Object.fromEntries(
+                infoText.split('\n').filter(line => line.includes(':')).map(line => {
                     const [key, ...value] = line.split(': ');
                     const formattedKey = key.toLowerCase().replace(/\s/g, '');
                     return [formattedKey, value.join(': ')];
@@ -65,6 +68,7 @@ export function UploadDialog({ movies, setMovies }: UploadDialogProps) {
                 id: (newMovies[newMovies.length -1]?.id ?? 0) + 1,
                 name: info.name || name.replace(/_/g, ' '),
                 posterUrl: URL.createObjectURL(group.poster),
+                logoUrl: group.logo ? URL.createObjectURL(group.logo) : 'https://placehold.co/400x150.png',
                 description: info.description || '',
                 commanderBlurb: info.commanderblurb || '',
                 visualsBlurb: info.visualsblurb || '',
