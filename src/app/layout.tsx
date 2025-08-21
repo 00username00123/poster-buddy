@@ -2,6 +2,7 @@ import type {Metadata} from 'next';
 import { Film } from 'lucide-react';
 import './globals.css';
 import { Button } from '@/components/ui/button';
+import { UploadDialog } from '@/components/upload-dialog';
 
 export const metadata: Metadata = {
   title: 'Poster Buddy',
@@ -32,7 +33,7 @@ export default function RootLayout({
               </div>
               <div className="flex flex-1 items-center justify-end space-x-2">
                 <Button variant="outline">Control</Button>
-                <Button>Upload Posters</Button>
+                <UploadDialog />
               </div>
             </div>
           </header>
