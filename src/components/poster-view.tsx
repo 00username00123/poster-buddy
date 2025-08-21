@@ -35,8 +35,6 @@ export function PosterView({ movie, movieIndex, totalMovies }: PosterViewProps) 
         <p className="text-muted-foreground mb-4">{`${movieIndex + 1} of ${totalMovies}`}</p>
         <div className="space-y-4 border rounded-md p-4 text-sm text-muted-foreground">
           <p>{movie.description}</p>
-          <p>{movie.commanderBlurb}</p>
-          <p>{movie.visualsBlurb}</p>
           <div>
             <p><strong>Starring:</strong> {movie.starring}</p>
             <p><strong>Director:</strong> {movie.director}</p>

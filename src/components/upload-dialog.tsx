@@ -18,7 +18,7 @@ import type { Movie } from '@/lib/data';
 
 interface UploadDialogProps {
     movies: Movie[];
-    setMovies: React.Dispatch<React.SetStateAction<Movie[]>>;
+    setMovies: (value: Movie[] | ((val: Movie[]) => Movie[])) => void;
 }
 
 export function UploadDialog({ movies, setMovies }: UploadDialogProps) {
@@ -55,29 +55,32 @@ export function UploadDialog({ movies, setMovies }: UploadDialogProps) {
         if (group.poster && group.info) {
             const infoText = await group.info.text();
             const info: Record<string, string> = {};
-            const lines = infoText.split('\n');
             let descriptionParts: string[] = [];
             
+            const lines = infoText.split('\n');
+            let currentKey = 'description'; 
+
             lines.forEach(line => {
-                const parts = line.split(':');
+                const-parts = line.split(':');
                 if (parts.length > 1) {
                     const key = parts[0].toLowerCase().replace(/\s/g, '');
                     const value = parts.slice(1).join(':').trim();
                     info[key] = value;
-                } else if (line.trim().length > 0) {
-                  // Assume lines without ':' are part of the description
+                    if(key === 'rating') currentKey = 'post-rating';
+                } else if (line.trim().length > 0 && currentKey === 'description') {
                   descriptionParts.push(line.trim());
                 }
             });
+            info.description = descriptionParts.join('\n');
+
+            const nextId = (movies.length > 0 ? Math.max(...movies.map(m => m.id)) : 0) + newMovies.length + 1;
 
             const newMovie: Movie = {
-                id: (movies.length > 0 ? Math.max(...movies.map(m => m.id)) : 0) + newMovies.length + 1,
+                id: nextId,
                 name: info.name || name.replace(/_/g, ' '),
                 posterUrl: URL.createObjectURL(group.poster),
-                logoUrl: group.logo ? URL.createObjectURL(group.logo) : 'https://placehold.co/400x150.png',
-                description: info.description || descriptionParts.join('\n') || '',
-                commanderBlurb: info.commanderblurb || '',
-                visualsBlurb: info.visualsblurb || '',
+                logoUrl: group.logo ? URL.createObjectURL(group.logo) : 'https://placehold.co/400x150/000000/ffffff.png&text=%20',
+                description: info.description || '',
                 starring: info.starring || '',
                 director: info.director || '',
                 runtime: info.runtime || '',
