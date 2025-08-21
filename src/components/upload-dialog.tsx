@@ -33,7 +33,7 @@ export function UploadDialog({ movies, setMovies }: UploadDialogProps) {
     event.preventDefault();
     if (!files) return;
 
-    const newMovies: Movie[] = [...movies];
+    const newMovies: Movie[] = [];
     const fileGroups: Record<string, { poster?: File, logo?: File, info?: File }> = {};
 
     for (const file of Array.from(files)) {
@@ -55,21 +55,27 @@ export function UploadDialog({ movies, setMovies }: UploadDialogProps) {
         if (group.poster && group.info) {
             const infoText = await group.info.text();
             const info: Record<string, string> = {};
-            infoText.split('\n').forEach(line => {
+            const lines = infoText.split('\n');
+            let descriptionParts: string[] = [];
+            
+            lines.forEach(line => {
                 const parts = line.split(':');
                 if (parts.length > 1) {
                     const key = parts[0].toLowerCase().replace(/\s/g, '');
                     const value = parts.slice(1).join(':').trim();
                     info[key] = value;
+                } else if (line.trim().length > 0) {
+                  // Assume lines without ':' are part of the description
+                  descriptionParts.push(line.trim());
                 }
             });
 
             const newMovie: Movie = {
-                id: (newMovies.length > 0 ? Math.max(...newMovies.map(m => m.id)) : 0) + 1,
+                id: (movies.length > 0 ? Math.max(...movies.map(m => m.id)) : 0) + newMovies.length + 1,
                 name: info.name || name.replace(/_/g, ' '),
                 posterUrl: URL.createObjectURL(group.poster),
                 logoUrl: group.logo ? URL.createObjectURL(group.logo) : 'https://placehold.co/400x150.png',
-                description: info.description || '',
+                description: info.description || descriptionParts.join('\n') || '',
                 commanderBlurb: info.commanderblurb || '',
                 visualsBlurb: info.visualsblurb || '',
                 starring: info.starring || '',
@@ -83,7 +89,7 @@ export function UploadDialog({ movies, setMovies }: UploadDialogProps) {
         }
     }
     
-    setMovies(newMovies);
+    setMovies(prevMovies => [...prevMovies, ...newMovies]);
     setOpen(false);
     setFiles(null);
   };
