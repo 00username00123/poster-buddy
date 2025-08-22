@@ -49,7 +49,7 @@ export default function ManagePage() {
   };
 
   const handleDelete = async (movieToDelete: Movie) => {
-    await deleteMovie(movieToDelete.id);
+ await deleteMovie(movieToDelete.id);
     toast({
       title: "Movie Deleted",
       description: `${movieToDelete.name} has been removed.`,
