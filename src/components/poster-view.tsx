@@ -25,28 +25,28 @@ export function PosterView({ movie, movieIndex, totalMovies, theme }: PosterView
   }
 
   return (
-    <div className={`p-4 rounded-lg ${themeClass} dark`}>
-      <div className="flex justify-center mb-4">
-        <Image
-          src={movie.posterUrl}
-          alt={`${movie.name} Poster`}
-          width={600}
-          height={900}
-          className="rounded-lg shadow-2xl object-cover w-full h-auto max-w-md"
-          data-ai-hint={movie.posterAiHint}
-          priority={movieIndex === 0}
-        />
+    <div className={`p-4 rounded-lg ${themeClass} dark flex gap-4`}>
+      <div className="lg:w-1/2 flex justify-center">
+ <Image
+ src={movie.posterUrl}
+ alt={`${movie.name} Poster`}
+ width={600}
+ height={900}
+ className="rounded-lg shadow-2xl object-cover w-full h-auto max-w-md"
+ data-ai-hint={movie.posterAiHint}
+ priority={movieIndex === 0}
+ />
       </div>
-      <div className="flex flex-col items-center lg:items-start">
-        <div className="mb-4 flex justify-center items-center h-24 sm:h-32 md:h-40">
-          <Image
-            src={movie.logoUrl}
-            alt={`${movie.name} logo`}
-            width={300}
-            height={100}
-            data-ai-hint="movie logo"
-            className="object-contain w-auto h-full max-w-[80%]"
-          />
+      <div className="lg:w-1/2 flex flex-col items-center lg:items-start">
+        <div className="mb-4 flex justify-center lg:justify-start items-center h-24 sm:h-32 md:h-40">
+ <Image
+ src={movie.logoUrl}
+ alt={`${movie.name} logo`}
+ width={300}
+ height={100}
+ data-ai-hint="movie logo"
+ className="object-contain w-auto h-full max-w-[80%] lg:max-w-full"
+ />
         </div>
         <p className="text-muted-foreground mb-4">{`${movieIndex + 1} of ${totalMovies}`}</p>
         <div className="space-y-4 border rounded-md p-4 text-sm sm:text-base text-muted-foreground">
