@@ -5,12 +5,10 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Film } from "lucide-react";
 import { PosterView } from "@/components/poster-view";
-import { useFirestore } from "@/hooks/use-firestore";
+import { useMovies } from "@/context/MovieContext";
 import { UploadDialog } from "@/components/upload-dialog";
-import { Movie, initialMovies } from "@/lib/data";
 
 export default function Home() {
-  const { movies, addMovie } = useFirestore<Movie>("movies", initialMovies); 
   const [cycleSpeed, setCycleSpeed] = useState<number>(() => {
     if (typeof window !== 'undefined') {
       const storedSpeed = localStorage.getItem('cycleSpeed');
@@ -20,11 +18,14 @@ export default function Home() {
   }); // Cycling speed in seconds
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
+  const { movies, addMovie } = useMovies();
 
   const goToPrevious = () => {
-    setCurrentIndex((prevIndex) =>
-      prevIndex === 0 ? movies.length - 1 : prevIndex - 1
-    );
+    setCurrentIndex((prevIndex) => (prevIndex === 0 ? movies.length - 1 : prevIndex - 1));
+  };
+
+  const addMovies = (newMovies: Movie[]) => {
+    setMovies(prevMovies => [...prevMovies, ...newMovies]);
   };
 
   const goToNext = () => {

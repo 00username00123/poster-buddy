@@ -17,25 +17,16 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useFirestore } from "@/hooks/use-firestore";
+import { useMovies } from "@/context/MovieContext";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; import { Checkbox } from "@/components/ui/checkbox";
 import { Movie, initialMovies } from "@/lib/data";
 import { Film, Trash2, Home, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function ManagePage() {
-  const { movies, addMovie, updateMovie, deleteMovie } = useFirestore<Movie>("movies", initialMovies);
-  const [editingMovie, setEditingMovie] = useState<Movie | null>(null);
-  const { toast } = useToast();
+  const { movies, updateMovie, deleteMovie } = useMovies();  const [editingMovie, setEditingMovie] = useState<Movie | null>(null);  const { toast } = useToast();
   const [selectedMovies, setSelectedMovies] = useState<string[]>([]);
-  const [cycleSpeed, setCycleSpeed] = useState<number>(() => {
-    if (typeof window !== 'undefined') {
-      const savedSpeed = localStorage.getItem('cycleSpeed');
-      return savedSpeed ? Number(savedSpeed) : 5;
-    }
-    return 5;
-  });
+  const [cycleSpeed, setCycleSpeed] = useState<number>(() => {    if (typeof window !== 'undefined') {      const savedSpeed = localStorage.getItem('cycleSpeed');      return savedSpeed ? Number(savedSpeed) : 5;    }    return 5;  });
 
   const handleEdit = (movie: Movie) => {
     setEditingMovie({ ...movie });
@@ -44,19 +35,8 @@ export default function ManagePage() {
   const handleCancelEdit = () => {
     setEditingMovie(null);
   };
-
-  const handleSave = async () => {
-    if (!editingMovie) return;
-    await updateMovie(editingMovie.id, editingMovie);
-    setEditingMovie(null);
-    toast({
-      title: "Movie Saved",
-      description: `${editingMovie.name} has been updated.`,
-    });
-  };
-
-  const handleDelete = async (movieToDelete: Movie) => {
-    await deleteMovie(movieToDelete.id);
+  const handleDelete = (movieToDelete: Movie) => {
+    deleteMovie(movieToDelete.id);
     toast({
       title: "Movie Deleted",
       description: `${movieToDelete.name} has been removed.`,
@@ -93,8 +73,8 @@ export default function ManagePage() {
     setSelectedMovies(movies.map(movie => movie.id));
   };
 
-  const handleDeleteSelected = async () => {
-    await Promise.all(selectedMovies.map(movieId => deleteMovie(movieId)));
+  const handleDeleteSelected = () => {
+    selectedMovies.forEach(movieId => deleteMovie(movieId));
     setSelectedMovies([]);
     toast({
       title: "Selected Movies Deleted",
@@ -102,6 +82,15 @@ export default function ManagePage() {
     });
   };
 
+  const handleSave = () => {
+    if (!editingMovie) return;
+    updateMovie(editingMovie.id, editingMovie);
+    setEditingMovie(null);
+    toast({
+      title: "Movie Saved",
+      description: `${editingMovie.name} has been updated.`,
+    });
+  };
   const generateInfoFile = (movie: Movie) => {
     const content = `Name: ${movie.name}
 Description: ${movie.description}

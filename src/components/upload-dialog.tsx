@@ -13,16 +13,16 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Upload } from 'lucide-react';
-import type { Movie } from '@/lib/data';
-import { useFirestore } from '@/hooks/use-firestore';
+import { Upload } from "lucide-react";
+import type { Movie, UploadedMovie } from '@/lib/data';
+import { useMovies } from '@/context/MovieContext';
 
 export function UploadDialog() {
   const [open, setOpen] = useState(false);
   const [files, setFiles] = useState<FileList | null>(null);
-  const { addMovie } = useFirestore('movies');
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const { addMovie } = useMovies();
+ 
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => { 
     setFiles(event.target.files);
   };
 
@@ -86,6 +86,8 @@ export function UploadDialog() {
       });
     }
 
+    const uploadedMovies: UploadedMovie[] = [];
+
     for (const name in fileGroups) {
         const group = fileGroups[name];
         if (group.poster && group.info) {
@@ -113,7 +115,7 @@ export function UploadDialog() {
             const logoUrl = group.logo ? await fileToDataUrl(group.logo) : 'https://placehold.co/400x150.png';
 
 
-            const newMovie: Omit<Movie, 'id'> = {
+            const newMovie: UploadedMovie = {
                 name: info.name || name.replace(/_/g, ' '),
                 posterUrl,
                 logoUrl,
@@ -124,9 +126,13 @@ export function UploadDialog() {
                 genre: info.genre || '',
                 rating: info.rating || '',
                 posterAiHint: `movie poster for ${name}`,
+                id: Date.now().toString() + Math.random().toString(36).substring(2), // Generate a simple unique ID
             };
-            await addMovie(newMovie);
+            uploadedMovies.push(newMovie);
         }
+    }
+    for (const movie of uploadedMovies) {
+      addMovie(movie);
     }
     
     setOpen(false);
