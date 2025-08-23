@@ -18,6 +18,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useFirestore } from "@/hooks/use-firestore";
 import { Movie, initialMovies } from "@/lib/data";
 import { Film, Trash2, Home, Download } from "lucide-react";
@@ -27,6 +28,11 @@ export default function ManagePage() {
   const { movies, addMovie, updateMovie, deleteMovie } = useFirestore<Movie>("movies", initialMovies);
   const [editingMovie, setEditingMovie] = useState<Movie | null>(null);
   const { toast } = useToast();
+  const [selectedMovies, setSelectedMovies] = useState<string[]>([]);
+  // This state needs to be connected to the component that displays the posters to control the cycling speed.
+  const [cycleSpeed, setCycleSpeed] = useState<number>(5); 
+  // This state needs to be used in the component that displays the posters to apply the selected theme.
+  const [currentTheme, setCurrentTheme] = useState<string>("Blue");
 
   const handleEdit = (movie: Movie) => {
     setEditingMovie({ ...movie });
@@ -72,6 +78,26 @@ export default function ManagePage() {
     setEditingMovie({ ...editingMovie, [imageType]: newUrl });
   };
   
+  const handleMovieSelect = (movieId: string) => {
+    setSelectedMovies((prevSelected) =>
+      prevSelected.includes(movieId)
+        ? prevSelected.filter((id) => id !== movieId)
+        : [...prevSelected, movieId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    setSelectedMovies(movies.map(movie => movie.id));
+  };
+
+  const handleDeleteSelected = async () => {
+    await Promise.all(selectedMovies.map(movieId => deleteMovie(movieId)));
+    setSelectedMovies([]);
+    toast({
+      title: "Selected Movies Deleted",
+      description: `${selectedMovies.length} movies have been removed.`,
+    });
+  };
   const generateInfoFile = (movie: Movie) => {
     const content = `Name: ${movie.name}
 Description: ${movie.description}
@@ -169,7 +195,44 @@ Rating: ${movie.rating}`;
         </div>
       </header>
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6">Manage Posters</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Manage Posters</h1>
+        <div className="flex items-center space-x-4">
+           <div className="flex items-center space-x-2">
+            <label htmlFor="themeSelector" className="text-sm font-medium">Select Theme</label>
+            <select
+              id="themeSelector"
+              value={currentTheme}
+              onChange={(e) => setCurrentTheme(e.target.value)}
+              className="px-2 py-1 border rounded-md text-sm bg-gray-800 text-white"
+            >
+              <option value="Blue">Blue</option>
+              <option value="Blue Dynamic">Blue Dynamic</option>
+              <option value="Red">Red</option>
+              <option value="Red Dynamic">Red Dynamic</option>
+              <option value="Pumpkin">Pumpkin</option>
+              <option value="Pumpkin Dynamic">Pumpkin Dynamic</option>
+            </select>
+          </div>
+           <div className="flex items-center space-x-2">
+            <label htmlFor="cycleSpeed" className="text-sm font-medium">Cycle Speed (seconds)</label>
+            <Input
+              id="cycleSpeed"
+              type="number"
+              value={cycleSpeed}
+              onChange={(e) => setCycleSpeed(Number(e.target.value))}
+              className="w-20"
+              min="1"
+            />
+          </div>
+          {selectedMovies.length > 0 && (
+            <>
+              <Button onClick={handleSelectAll} variant="outline">Select All</Button>
+              <Button onClick={handleDeleteSelected} variant="destructive">Delete Selected</Button>
+            </>
+          )}
+        </div>
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {movies.map((movie) => (
           <Card key={movie.id}>
@@ -178,7 +241,16 @@ Rating: ${movie.rating}`;
             </CardHeader>
             <CardContent>
               <div className="aspect-[2/3] w-full mb-4">
-                <Image src={movie.posterUrl} alt={`${movie.name} Poster`} width={300} height={450} className="rounded-md object-cover w-full h-full" />
+                 <div className="relative">
+                   <Image src={movie.posterUrl} alt={`${movie.name} Poster`} width={300} height={450} className="rounded-md object-cover w-full h-full" />
+                    <Checkbox
+                      checked={selectedMovies.includes(movie.id)}
+                      onCheckedChange={() => handleMovieSelect(movie.id)}
+                      className="absolute top-2 right-2"
+                    />
+                 </div>
+
+
               </div>
               <div className="flex flex-wrap justify-center items-center gap-2">
                 <Button onClick={() => handleEdit(movie)} size="sm">Edit</Button>
