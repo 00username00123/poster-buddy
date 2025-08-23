@@ -17,19 +17,33 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
+} from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useFirestore } from "@/hooks/use-firestore";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Movie, initialMovies } from "@/lib/data";
 import { Film, Trash2, Home, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function ManagePage() {
-  const { movies, addMovie, updateMovie, deleteMovie } = useFirestore<Movie>("movies", initialMovies);
+  const [movies, setMovies] = useState<Movie[]>(initialMovies);
   const [editingMovie, setEditingMovie] = useState<Movie | null>(null);
   const { toast } = useToast();
   const [selectedMovies, setSelectedMovies] = useState<string[]>([]);
   // This state needs to be connected to the component that displays the posters to control the cycling speed.
+  const addMovie = (movie: Movie) => {
+    setMovies([...movies, movie]);
+  };
+
+  const updateMovie = (id: string, updatedMovie: Partial<Movie>) => {
+    setMovies(movies.map(movie => movie.id === id ? { ...movie, ...updatedMovie } : movie));
+  };
+
+  const deleteMovie = (id: string) => {
+    setMovies(movies.filter(movie => movie.id !== id));
+  };
+
   const [cycleSpeed, setCycleSpeed] = useState<number>(5); 
   // This state needs to be used in the component that displays the posters to apply the selected theme.
   const [currentTheme, setCurrentTheme] = useState<string>("Blue");
@@ -199,20 +213,20 @@ Rating: ${movie.rating}`;
         <h1 className="text-3xl font-bold">Manage Posters</h1>
         <div className="flex items-center space-x-4">
            <div className="flex items-center space-x-2">
-            <label htmlFor="themeSelector" className="text-sm font-medium">Select Theme</label>
-            <select
-              id="themeSelector"
-              value={currentTheme}
-              onChange={(e) => setCurrentTheme(e.target.value)}
-              className="px-2 py-1 border rounded-md text-sm bg-gray-800 text-white"
-            >
-              <option value="Blue">Blue</option>
-              <option value="Blue Dynamic">Blue Dynamic</option>
-              <option value="Red">Red</option>
-              <option value="Red Dynamic">Red Dynamic</option>
-              <option value="Pumpkin">Pumpkin</option>
-              <option value="Pumpkin Dynamic">Pumpkin Dynamic</option>
-            </select>
+            <label htmlFor="themeSelector" className="text-sm font-medium">
+              Select Theme
+            </label>
+             <Select onValueChange={setCurrentTheme} value={currentTheme}>
+              <SelectTrigger id="themeSelector" className="w-[180px]">
+ <SelectValue placeholder="Select a theme" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Blue">Blue</SelectItem>
+                <SelectItem value="Blue Dynamic">Blue Dynamic</SelectItem>
+                <SelectItem value="Pumpkin">Pumpkin</SelectItem>
+                <SelectItem value="Pumpkin Dynamic">Pumpkin Dynamic</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
            <div className="flex items-center space-x-2">
             <label htmlFor="cycleSpeed" className="text-sm font-medium">Cycle Speed (seconds)</label>
