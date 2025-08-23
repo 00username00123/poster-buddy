@@ -6,11 +6,12 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { PosterView } from "@/components/poster-view";
 import { Movie, initialMovies } from "@/lib/data";
-import { UploadDialog } from "@/components/upload-dialog"; // UploadDialog no longer used directly here
-import { useMovies } from "@/context/MovieContext";
+import { UploadDialog } from "@/components/upload-dialog";
+import { useFirestore } from "@/hooks/use-firestore";
 import { Film } from "lucide-react";
 
-export default function Home() {  const { movies, currentTheme } = useMovies();
+export default function Home() {
+  const { movies, addMovie } = useFirestore<Movie[]>("movies", initialMovies);
   const [currentIndex, setCurrentIndex] = useState(0);
 
   const goToPrevious = () => {
@@ -24,10 +25,8 @@ export default function Home() {  const { movies, currentTheme } = useMovies();
   };
 
   useEffect(() => {
-    if (movies.length > 1) {
-      const interval = setInterval(goToNext, 7000);
-      return () => clearInterval(interval);
-    }
+    const interval = setInterval(goToNext, 7000);
+    return () => clearInterval(interval);
   }, [movies.length]);
 
   useEffect(() => {
@@ -42,14 +41,14 @@ export default function Home() {  const { movies, currentTheme } = useMovies();
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [goToPrevious, goToNext]);
+  }, []);
 
   const currentMovie = movies[currentIndex];
 
   return (
     <>
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 max-w-screen-2xl items-center">
+        <div className="container flex h-14 items-center">
           <div className="mr-4 flex items-center">
             <a className="flex items-center gap-2" href="/">
               <Film className="h-6 w-6" />
@@ -57,21 +56,22 @@ export default function Home() {  const { movies, currentTheme } = useMovies();
             </a>
           </div>
           <div className="flex flex-1 items-center justify-end space-x-2">
-            <Link href="/manage" className="mr-2">
- <Button variant="outline">Manage Posters</Button>            </Link>
+            <Link href="/manage">
+              <Button variant="outline">Manage Posters</Button>
+            </Link>
+            <UploadDialog movies={movies} addMovie={addMovie} />
           </div>
         </div>
       </header>
-      <div className="container mx-auto px-4 py-8 flex-1 flex flex-col justify-center">
+      <div className="container mx-auto px-4 py-8">
         {!currentMovie ? (
            <div className="text-center">
-            <UploadDialog />
              <p>No movies to display. Upload some posters to get started!</p>
            </div>
          ) : (
           <>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center max-w-7xl mx-auto">
-              <PosterView movie={currentMovie} movieIndex={currentIndex} totalMovies={movies.length} theme={currentTheme} />
+            <div className="items-center">
+              <PosterView movie={currentMovie} movieIndex={currentIndex} totalMovies={movies.length} />
             </div>
             <div className="flex items-center justify-center mt-8 gap-4">
               <Button variant="outline" size="icon" onClick={goToPrevious} disabled={movies.length <= 1}>

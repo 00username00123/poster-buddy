@@ -205,12 +205,13 @@ Rating: ${movie.rating}`;
               Select Theme
             </label>
              <Select onValueChange={setCurrentTheme} value={currentTheme}>
-              <SelectTrigger id="themeSelector" className="w-[180px]" onValueChange={(value) => setCurrentTheme(value as string)}>
+ <SelectTrigger id="themeSelector" className="w-[180px]">
  <SelectValue placeholder="Select a theme" />
-              </SelectTrigger>
+ </SelectTrigger>
               <SelectContent>
                 <SelectItem value="Blue">Blue</SelectItem>
                 <SelectItem value="Pumpkin">Pumpkin</SelectItem>
+                <SelectItem value="Red">Red</SelectItem>
               </SelectContent>
             </Select>
           </div>
