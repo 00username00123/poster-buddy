@@ -16,15 +16,12 @@ import { Label } from "@/components/ui/label";
 import { Upload } from 'lucide-react';
 import type { Movie } from '@/lib/data';
 
-interface UploadDialogProps {
-    movies: Movie[];
-    addMovie: (movie: Omit<Movie, 'id'>) => Promise<void>;
-}
+import { useMovies } from "@/context/MovieContext";
 
-export function UploadDialog({ movies, addMovie }: UploadDialogProps) {
+export function UploadDialog() {
   const [open, setOpen] = useState(false);
   const [files, setFiles] = useState<FileList | null>(null);
-
+  const { addMovie } = useMovies();
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setFiles(event.target.files);
   };

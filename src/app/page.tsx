@@ -6,12 +6,11 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { PosterView } from "@/components/poster-view";
 import { Movie, initialMovies } from "@/lib/data";
-import { UploadDialog } from "@/components/upload-dialog";
-import { useFirestore } from "@/hooks/use-firestore";
+// import { UploadDialog } from "@/components/upload-dialog"; // UploadDialog no longer used directly here
+import { useMovies } from "@/context/MovieContext";
 import { Film } from "lucide-react";
 
-export default function Home() {
-  const { movies, addMovie } = useFirestore<Movie[]>("movies", initialMovies);
+export default function Home() {  const { movies, currentTheme } = useMovies();
   const [currentIndex, setCurrentIndex] = useState(0);
 
   const goToPrevious = () => {
@@ -61,7 +60,8 @@ export default function Home() {
             <Link href="/manage">
               <Button variant="outline">Manage Posters</Button>
             </Link>
-            <UploadDialog movies={movies} addMovie={addMovie} />
+            {/* UploadDialog trigger can be placed here or within ManagePage based on design */}
+            {/* <UploadDialog /> */}
           </div>
         </div>
       </header>
@@ -73,7 +73,7 @@ export default function Home() {
          ) : (
           <>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center max-w-7xl mx-auto">
-              <PosterView movie={currentMovie} movieIndex={currentIndex} totalMovies={movies.length} />
+              <PosterView movie={currentMovie} movieIndex={currentIndex} totalMovies={movies.length} theme={currentTheme} />
             </div>
             <div className="flex items-center justify-center mt-8 gap-4">
               <Button variant="outline" size="icon" onClick={goToPrevious} disabled={movies.length <= 1}>
