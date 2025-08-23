@@ -93,7 +93,7 @@ export default function ManagePage() {
   };
 
   const handleDeleteSelected = async () => {
-    await Promise.all(selectedMovies.map(movieId => deleteMovie(movieId)));
+ await Promise.all(selectedMovies.map(movieId => deleteMovie(movieId)));
     setSelectedMovies([]);
     toast({
       title: "Selected Movies Deleted",
