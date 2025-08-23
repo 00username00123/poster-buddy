@@ -46,12 +46,12 @@ export function PosterView({ movie, movieIndex, totalMovies, theme }: PosterView
           alt={`${movie.name} Poster`}
  width={2340}
  height={3510}
- className="rounded-lg shadow-2xl object-cover w-full h-auto max-w-3xl lg:max-w-full"
+ className="rounded-lg shadow-2xl object-contain w-auto max-h-[calc(100vh-100px)]"
  data-ai-hint={movie.posterAiHint || "Movie poster"}
           priority={movieIndex === 0}
         />
       </div>
-      <div className="w-full lg:w-1/3 flex flex-col items-center lg:items-start justify-start lg:text-left h-[600px] lg:h-[900px]"> {/* Added explicit height */}
+      <div className="w-full lg:w-2/5 flex flex-col items-center lg:items-start justify-start lg:text-left h-[600px] lg:h-[900px]"> {/* Added explicit height */}
  <div className="mb-4 flex justify-center lg:justify-start items-center h-24 sm:h-32 md:h-40 w-full flex-shrink-0"> {/* Added flex-shrink-0 */}
  <Image
  src={movie.logoUrl || '/placeholder-logo.svg'}
