@@ -47,6 +47,14 @@ export default function Home() {
     };
   }, []);
 
+  // Effect to update currentIndex when a new movie is added
+  useEffect(() => {
+    // Check if the movies array has increased in length
+    if (movies.length > 0 && currentIndex !== movies.length - 1) {
+      setCurrentIndex(movies.length - 1); // Update currentIndex to the last index
+    }
+  }, [movies.length]); // This effect runs whenever the movies array length changes
+
   return (
     <>
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
