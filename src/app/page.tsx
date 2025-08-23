@@ -14,6 +14,8 @@ export default function Home() {
   const { movies, addMovie } = useMovies(); // Use the useMovies hook
   const cycleSpeed = 5; // Fixed cycling speed in seconds
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [loading, setLoading] = useState(true); // Add loading state
+
 
   const goToPrevious = () => {
     setCurrentIndex((prevIndex) =>
@@ -26,6 +28,7 @@ export default function Home() {
   };
 
   useEffect(() => {
+    setLoading(false); // Set loading to false after movies are loaded
     const interval = setInterval(goToNext, cycleSpeed * 1000);
     return () => clearInterval(interval);
   }, [movies.length]);
@@ -43,8 +46,6 @@ export default function Home() {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
-
-  const currentMovie = movies[currentIndex];
 
   return (
     <>
@@ -65,15 +66,19 @@ export default function Home() {
         </div>
     </header>
       <div className="container mx-auto px-4 py-8">
-        {!currentMovie ? (
+        {loading ? (
+          <div className="text-center">
+            <p>Loading movies...</p> {/* Loading indicator */}
+          </div>
+        ) : movies.length === 0 ? (
            <div className="text-center">
              <p>No movies to display. Upload some posters to get started!</p>
            </div>
          ) : (
           <>
             <div className="items-center">
-              <PosterView movie={currentMovie} movieIndex={currentIndex} totalMovies={movies.length} theme="Blue" /> {/* Theme is not managed by useMovies, defaulting to Blue */}
-            </div>
+              <PosterView movie={movies[currentIndex]} movieIndex={currentIndex} totalMovies={movies.length} theme="Blue" /> {/* Theme is not managed by useMovies, defaulting to Blue */}
+           </div>
             <div className="flex items-center justify-center mt-8 gap-4">
               <Button variant="outline" size="icon" onClick={goToPrevious} disabled={movies.length <= 1}>
                 <ChevronLeft className="h-4 w-4" />
