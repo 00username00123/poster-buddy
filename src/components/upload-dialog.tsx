@@ -46,7 +46,7 @@ export function UploadDialog() {
         fileGroups[name][type] = file;
     }
 
-    const resizeImage = (file: File): Promise<string> => {
+    const resizePoster = (file: File): Promise<string> => {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = (event) => {
@@ -70,6 +70,21 @@ export function UploadDialog() {
         reader.readAsDataURL(file);
       });
     };
+    
+    const fileToDataUrl = (file: File): Promise<string> => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          if (event.target?.result) {
+            resolve(event.target.result as string);
+          } else {
+            reject(new Error("Failed to read file."));
+          }
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
 
     for (const name in fileGroups) {
         const group = fileGroups[name];
@@ -94,8 +109,8 @@ export function UploadDialog() {
             });
             info.description = descriptionParts.join('\n');
 
-            const posterUrl = await resizeImage(group.poster);
-            const logoUrl = group.logo ? await resizeImage(group.logo) : 'https://placehold.co/400x150.png';
+            const posterUrl = await resizePoster(group.poster);
+            const logoUrl = group.logo ? await fileToDataUrl(group.logo) : 'https://placehold.co/400x150.png';
 
 
             const newMovie: Omit<Movie, 'id'> = {
