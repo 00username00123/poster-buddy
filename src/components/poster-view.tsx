@@ -2,6 +2,7 @@ import Image from "next/image";
 import type { Movie } from "@/lib/data";
 
 interface PosterViewProps {
+  isEditing: boolean;
   movie: Movie;
   movieIndex: number;
   totalMovies: number;
@@ -9,7 +10,7 @@ interface PosterViewProps {
 }
 
 export function PosterView({ movie, movieIndex, totalMovies, theme }: PosterViewProps) {
-  let themeClass = '';
+  let themeClass = ''; // TODO: Remove when dynamic theme is working.
   switch (theme) {
     case 'Blue':
       themeClass = 'bg-blue-900';
@@ -25,10 +26,10 @@ export function PosterView({ movie, movieIndex, totalMovies, theme }: PosterView
   }
 
   return (
-    <div className={`p-4 rounded-lg ${themeClass} dark flex gap-4`}>
-      <div className="lg:w-1/2 flex justify-center">
+    <div className={`p-4 rounded-lg ${themeClass} dark flex flex-col lg:flex-row gap-4 items-center lg:items-stretch`}>
+      <div className="w-full lg:w-1/2 flex justify-center">
  <Image
- src={movie.posterUrl}
+ src={movie.posterUrl || '/placeholder-poster.png'}
  alt={`${movie.name} Poster`}
  width={600}
  height={900}
@@ -37,10 +38,10 @@ export function PosterView({ movie, movieIndex, totalMovies, theme }: PosterView
  priority={movieIndex === 0}
  />
       </div>
-      <div className="lg:w-1/2 flex flex-col items-center lg:items-start">
-        <div className="mb-4 flex justify-center lg:justify-start items-center h-24 sm:h-32 md:h-40">
+      <div className="w-full lg:w-1/2 flex flex-col items-center lg:items-start justify-between">
+        <div className="mb-4 flex justify-center items-center h-24 sm:h-32 md:h-40 w-full">
  <Image
- src={movie.logoUrl}
+ src={movie.logoUrl || '/placeholder-logo.png'}
  alt={`${movie.name} logo`}
  width={300}
  height={100}
@@ -48,7 +49,9 @@ export function PosterView({ movie, movieIndex, totalMovies, theme }: PosterView
  className="object-contain w-auto h-full max-w-[80%] lg:max-w-full"
  />
         </div>
-        <p className="text-muted-foreground mb-4">{`${movieIndex + 1} of ${totalMovies}`}</p>
+        <div className="flex-grow w-full flex flex-col justify-center">
+ <p className="text-muted-foreground mb-4 text-center lg:text-left">{`${movieIndex + 1} of ${totalMovies}`}</p>
+
         <div className="space-y-4 border rounded-md p-4 text-sm sm:text-base text-muted-foreground">
           <p className="text-base sm:text-lg">{movie.description}</p>
           <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs sm:text-sm">
@@ -58,6 +61,7 @@ export function PosterView({ movie, movieIndex, totalMovies, theme }: PosterView
             <p>{movie.genre}</p>
             <p>{movie.rating}</p>
           </div>
+        </div>
         </div>
       </div>
     </div>

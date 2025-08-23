@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { PosterView } from "@/components/poster-view";
 import { Movie, initialMovies } from "@/lib/data";
-// import { UploadDialog } from "@/components/upload-dialog"; // UploadDialog no longer used directly here
+import { UploadDialog } from "@/components/upload-dialog"; // UploadDialog no longer used directly here
 import { useMovies } from "@/context/MovieContext";
 import { Film } from "lucide-react";
 
@@ -57,17 +57,15 @@ export default function Home() {  const { movies, currentTheme } = useMovies();
             </a>
           </div>
           <div className="flex flex-1 items-center justify-end space-x-2">
-            <Link href="/manage">
-              <Button variant="outline">Manage Posters</Button>
-            </Link>
-            {/* UploadDialog trigger can be placed here or within ManagePage based on design */}
-            {/* <UploadDialog /> */}
+            <Link href="/manage" className="mr-2">
+ <Button variant="outline">Manage Posters</Button>            </Link>
           </div>
         </div>
       </header>
       <div className="container mx-auto px-4 py-8 flex-1 flex flex-col justify-center">
         {!currentMovie ? (
            <div className="text-center">
+            <UploadDialog />
              <p>No movies to display. Upload some posters to get started!</p>
            </div>
          ) : (
