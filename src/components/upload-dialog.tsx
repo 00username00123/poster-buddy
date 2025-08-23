@@ -75,7 +75,7 @@ export function UploadDialog({ movies, addMovie }: UploadDialogProps) {
             const newMovie: Omit<Movie, 'id'> = {
                 name: info.name || name.replace(/_/g, ' '),
                 posterUrl: URL.createObjectURL(group.poster),
-                logoUrl: group.logo ? URL.createObjectURL(group.logo) : 'https://placehold.co/400x150/000000/ffffff.png&text=%20',
+                logoUrl: group.logo ? URL.createObjectURL(group.logo) : 'https://placehold.co/400x150/000000/ffffff.png',
                 description: info.description || '',
                 starring: info.starring || '',
                 director: info.director || '',
