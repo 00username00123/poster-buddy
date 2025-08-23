@@ -20,13 +20,11 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useFirestore } from "@/hooks/use-firestore";
 import { Movie, initialMovies } from "@/lib/data";
-import { Film, Trash2, Home } from "lucide-react";
+import { Film, Trash2, Home, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { addDoc, deleteDoc, doc, updateDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 
 export default function ManagePage() {
-  const { movies, setMovies, addMovie, updateMovie, deleteMovie } = useFirestore<Movie>("movies", initialMovies);
+  const { movies, addMovie, updateMovie, deleteMovie } = useFirestore<Movie>("movies", initialMovies);
   const [editingMovie, setEditingMovie] = useState<Movie | null>(null);
   const { toast } = useToast();
 
@@ -49,16 +47,12 @@ export default function ManagePage() {
   };
 
   const handleDelete = async (movieToDelete: Movie) => {
- await deleteMovie(movieToDelete.id);
+    await deleteMovie(movieToDelete.id);
     toast({
       title: "Movie Deleted",
       description: `${movieToDelete.name} has been removed.`,
       variant: "destructive",
     });
- setMovies((prevMovies) =>
-      prevMovies.filter((movie) => movie.id !== movieToDelete.id)
- );
-
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -99,26 +93,51 @@ Rating: ${movie.rating}`;
             <CardTitle>Editing: {editingMovie.name}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
               <div>
                 <label className="block text-sm font-medium mb-1">Poster</label>
-                <Image src={editingMovie.posterUrl} alt="Poster" width={300} height={450} className="rounded-md object-cover" />
+                <Image src={editingMovie.posterUrl} alt="Poster" width={300} height={450} className="rounded-md object-cover w-full h-auto" />
                 <Input type="file" accept="image/*" onChange={(e) => handleImageChange(e, 'posterUrl')} className="mt-2" />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Logo</label>
-                <Image src={editingMovie.logoUrl} alt="Logo" width={200} height={75} className="rounded-md bg-gray-700 p-2 object-contain" />
+                <div className="bg-gray-700 p-2 rounded-md flex justify-center items-center h-[150px]">
+                  <Image src={editingMovie.logoUrl} alt="Logo" width={200} height={75} className="object-contain h-full w-auto" />
+                </div>
                 <Input type="file" accept="image/*" onChange={(e) => handleImageChange(e, 'logoUrl')} className="mt-2" />
               </div>
             </div>
-            <Input name="name" value={editingMovie.name} onChange={handleInputChange} placeholder="Name" />
-            <Textarea name="description" value={editingMovie.description} onChange={handleInputChange} placeholder="Description" rows={4} />
-            <Input name="starring" value={editingMovie.starring} onChange={handleInputChange} placeholder="Starring" />
-            <Input name="director" value={editingMovie.director} onChange={handleInputChange} placeholder="Director" />
-            <Input name="runtime" value={editingMovie.runtime} onChange={handleInputChange} placeholder="Runtime" />
-            <Input name="genre" value={editingMovie.genre} onChange={handleInputChange} placeholder="Genre" />
-            <Input name="rating" value={editingMovie.rating} onChange={handleInputChange} placeholder="Rating" />
-            <div className="flex gap-2">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Name</label>
+              <Input name="name" value={editingMovie.name} onChange={handleInputChange} placeholder="Name" />
+            </div>
+             <div className="space-y-2">
+              <label className="text-sm font-medium">Description</label>
+              <Textarea name="description" value={editingMovie.description} onChange={handleInputChange} placeholder="Description" rows={4} />
+            </div>
+             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+               <div className="space-y-2">
+                <label className="text-sm font-medium">Starring</label>
+                <Input name="starring" value={editingMovie.starring} onChange={handleInputChange} placeholder="Starring" />
+               </div>
+               <div className="space-y-2">
+                 <label className="text-sm font-medium">Director</label>
+                <Input name="director" value={editingMovie.director} onChange={handleInputChange} placeholder="Director" />
+               </div>
+               <div className="space-y-2">
+                 <label className="text-sm font-medium">Runtime</label>
+                <Input name="runtime" value={editingMovie.runtime} onChange={handleInputChange} placeholder="Runtime" />
+               </div>
+               <div className="space-y-2">
+                 <label className="text-sm font-medium">Genre</label>
+                <Input name="genre" value={editingMovie.genre} onChange={handleInputChange} placeholder="Genre" />
+               </div>
+               <div className="space-y-2">
+                 <label className="text-sm font-medium">Rating</label>
+                <Input name="rating" value={editingMovie.rating} onChange={handleInputChange} placeholder="Rating" />
+               </div>
+            </div>
+            <div className="flex gap-2 pt-4">
               <Button onClick={handleSave}>Save Changes</Button>
               <Button variant="outline" onClick={handleCancelEdit}>Cancel</Button>
             </div>
@@ -131,7 +150,7 @@ Rating: ${movie.rating}`;
   return (
     <>
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 items-center">
+        <div className="container flex h-14 max-w-screen-2xl items-center">
           <div className="mr-4 flex items-center">
             <a className="flex items-center gap-2" href="/">
               <Film className="h-6 w-6" />
@@ -140,27 +159,29 @@ Rating: ${movie.rating}`;
           </div>
           <div className="flex flex-1 items-center justify-end space-x-2">
              <Link href="/">
-                <Button variant="outline"><Home className="mr-2"/> Home</Button>
+                <Button variant="outline"><Home className="mr-2 h-4 w-4"/> Home</Button>
             </Link>
           </div>
         </div>
       </header>
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-6">Manage Posters</h1>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {movies.map((movie) => (
           <Card key={movie.id}>
             <CardHeader>
-              <CardTitle className="truncate">{movie.name}</CardTitle>
+              <CardTitle className="truncate text-lg">{movie.name}</CardTitle>
             </CardHeader>
             <CardContent>
-              <Image src={movie.posterUrl} alt={`${movie.name} Poster`} width={300} height={450} className="rounded-md object-cover w-full h-auto mb-4" />
-              <div className="flex justify-between items-center gap-2">
-                <Button onClick={() => handleEdit(movie)}>Edit</Button>
-                <Button onClick={() => generateInfoFile(movie)}>Download Info</Button>
+              <div className="aspect-[2/3] w-full mb-4">
+                <Image src={movie.posterUrl} alt={`${movie.name} Poster`} width={300} height={450} className="rounded-md object-cover w-full h-full" />
+              </div>
+              <div className="flex flex-wrap justify-center items-center gap-2">
+                <Button onClick={() => handleEdit(movie)} size="sm">Edit</Button>
+                <Button onClick={() => generateInfoFile(movie)} size="sm" variant="secondary"><Download className="mr-2 h-4 w-4" /> Info</Button>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="destructive" size="icon"><Trash2 /></Button>
+                    <Button variant="destructive" size="icon"><Trash2 className="h-4 w-4"/></Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>

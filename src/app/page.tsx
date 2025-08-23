@@ -25,8 +25,10 @@ export default function Home() {
   };
 
   useEffect(() => {
-    const interval = setInterval(goToNext, 7000);
-    return () => clearInterval(interval);
+    if (movies.length > 1) {
+      const interval = setInterval(goToNext, 7000);
+      return () => clearInterval(interval);
+    }
   }, [movies.length]);
 
   useEffect(() => {
@@ -41,14 +43,14 @@ export default function Home() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, []);
+  }, [goToPrevious, goToNext]);
 
   const currentMovie = movies[currentIndex];
 
   return (
     <>
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 items-center">
+        <div className="container flex h-14 max-w-screen-2xl items-center">
           <div className="mr-4 flex items-center">
             <a className="flex items-center gap-2" href="/">
               <Film className="h-6 w-6" />
@@ -63,14 +65,14 @@ export default function Home() {
           </div>
         </div>
       </header>
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 flex-1 flex flex-col justify-center">
         {!currentMovie ? (
            <div className="text-center">
              <p>No movies to display. Upload some posters to get started!</p>
            </div>
          ) : (
           <>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center max-w-7xl mx-auto">
               <PosterView movie={currentMovie} movieIndex={currentIndex} totalMovies={movies.length} />
             </div>
             <div className="flex items-center justify-center mt-8 gap-4">
