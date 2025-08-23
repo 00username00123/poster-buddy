@@ -21,29 +21,17 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // Ensure Card imports are correct
 import { Movie, initialMovies } from "@/lib/data";
+import { useMovies } from "@/context/MovieContext"; // Import the useMovies hook
 import { Film, Trash2, Home, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function ManagePage() {
-  const [movies, setMovies] = useState<Movie[]>(initialMovies);
+  const { movies, addMovie, updateMovie, deleteMovie } = useMovies(); // Use the useMovies hook
   const [editingMovie, setEditingMovie] = useState<Movie | null>(null);
   const { toast } = useToast();
   const [selectedMovies, setSelectedMovies] = useState<string[]>([]);
-  // This state needs to be connected to the component that displays the posters to control the cycling speed.
-  const addMovie = (movie: Movie) => {
-    setMovies([...movies, movie]);
-  };
-
-  const updateMovie = (id: string, updatedMovie: Partial<Movie>) => {
-    setMovies(movies.map(movie => movie.id === id ? { ...movie, ...updatedMovie } : movie));
-  };
-
-  const deleteMovie = (id: string) => {
-    setMovies(movies.filter(movie => movie.id !== id));
-  };
-
   const [cycleSpeed, setCycleSpeed] = useState<number>(5); 
   // This state needs to be used in the component that displays the posters to apply the selected theme.
   const [currentTheme, setCurrentTheme] = useState<string>("Blue");
