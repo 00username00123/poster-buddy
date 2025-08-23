@@ -46,10 +46,26 @@ export function UploadDialog() {
         fileGroups[name][type] = file;
     }
 
-    const readFileAsDataURL = (file: File): Promise<string> => {
+    const resizeImage = (file: File): Promise<string> => {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
+        reader.onload = (event) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 1200;
+            canvas.height = 1500;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(img, 0, 0, 1200, 1500);
+              resolve(canvas.toDataURL(file.type));
+            } else {
+              reject(new Error('Could not get canvas context'));
+            }
+          };
+          img.onerror = reject;
+          img.src = event.target?.result as string;
+        };
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
@@ -78,8 +94,8 @@ export function UploadDialog() {
             });
             info.description = descriptionParts.join('\n');
 
-            const posterUrl = await readFileAsDataURL(group.poster);
-            const logoUrl = group.logo ? await readFileAsDataURL(group.logo) : 'https://placehold.co/400x150.png';
+            const posterUrl = await resizeImage(group.poster);
+            const logoUrl = group.logo ? await resizeImage(group.logo) : 'https://placehold.co/400x150.png';
 
 
             const newMovie: Omit<Movie, 'id'> = {
