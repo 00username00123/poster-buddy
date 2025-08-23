@@ -55,6 +55,10 @@ export default function ManagePage() {
       description: `${movieToDelete.name} has been removed.`,
       variant: "destructive",
     });
+ setMovies((prevMovies) =>
+      prevMovies.filter((movie) => movie.id !== movieToDelete.id)
+ );
+
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
