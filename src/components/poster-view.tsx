@@ -22,14 +22,14 @@ export function PosterView({ movie, movieIndex, totalMovies }: PosterViewProps) 
         />
       </div>
       <div className="flex flex-col">
-        <div className="mb-4 flex justify-center h-24 sm:h-32 md:h-40">
-          <Image 
-            src={movie.logoUrl} 
+        <div className="mb-4 flex justify-center items-center h-24 sm:h-32 md:h-40">
+          <Image
+            src={movie.logoUrl}
             alt={`${movie.name} logo`}
-            width={400}
-            height={150}
+            width={300}
+            height={100}
             data-ai-hint="movie logo"
-            className="object-contain w-auto h-full max-w-full"
+            className="object-contain w-auto h-full max-w-[80%]"
           />
         </div>
         <p className="text-muted-foreground mb-4 text-center lg:text-left">{`${movieIndex + 1} of ${totalMovies}`}</p>
