@@ -15,13 +15,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Upload } from 'lucide-react';
 import type { Movie } from '@/lib/data';
-
-import { useMovies } from "@/context/MovieContext";
+import { useFirestore } from '@/hooks/use-firestore';
 
 export function UploadDialog() {
   const [open, setOpen] = useState(false);
   const [files, setFiles] = useState<FileList | null>(null);
-  const { addMovie } = useMovies();
+  const { addMovie } = useFirestore('movies');
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setFiles(event.target.files);
   };
@@ -46,6 +46,15 @@ export function UploadDialog() {
         fileGroups[name][type] = file;
     }
 
+    const readFileAsDataURL = (file: File): Promise<string> => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    };
+
     for (const name in fileGroups) {
         const group = fileGroups[name];
         if (group.poster && group.info) {
@@ -54,7 +63,7 @@ export function UploadDialog() {
             let descriptionParts: string[] = [];
             
             const lines = infoText.split('\n');
-            let currentKey = 'description'; 
+            let currentKey = 'description';
 
             lines.forEach(line => {
                 const parts = line.split(':');
@@ -69,10 +78,14 @@ export function UploadDialog() {
             });
             info.description = descriptionParts.join('\n');
 
+            const posterUrl = await readFileAsDataURL(group.poster);
+            const logoUrl = group.logo ? await readFileAsDataURL(group.logo) : 'https://placehold.co/400x150.png';
+
+
             const newMovie: Omit<Movie, 'id'> = {
                 name: info.name || name.replace(/_/g, ' '),
-                posterUrl: URL.createObjectURL(group.poster),
-                logoUrl: group.logo ? URL.createObjectURL(group.logo) : 'https://placehold.co/400x150/000000/ffffff.png',
+                posterUrl,
+                logoUrl,
                 description: info.description || '',
                 starring: info.starring || '',
                 director: info.director || '',

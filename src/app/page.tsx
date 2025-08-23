@@ -5,11 +5,12 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Film } from "lucide-react";
 import { PosterView } from "@/components/poster-view";
-import { useMovies } from "@/context/MovieContext";
+import { useFirestore } from "@/hooks/use-firestore";
 import { UploadDialog } from "@/components/upload-dialog";
+import { Movie, initialMovies } from "@/lib/data";
 
 export default function Home() {
-  const { movies, addMovie } = useMovies(); 
+  const { movies, addMovie } = useFirestore<Movie>("movies", initialMovies); 
   const cycleSpeed = 5; // Cycling speed in seconds
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -61,19 +62,10 @@ export default function Home() {
             <Link href="/manage">
               <Button variant="outline">Manage Posters</Button>
             </Link>
-            <UploadDialog
-              movies={movies}
-              addMovie={(movie) => {
-                const newMovie = addMovie(movie);
-                // Move to the new movie's index (newly added is always at the end)
-                setCurrentIndex(movies.length);
-              }}
-            />
+            <UploadDialog />
           </div>
         </div>
       </header>
-
-      {/* Main container */}
       <div className="container mx-auto px-4 py-8">
         {loading ? (
           <div className="text-center">
@@ -91,7 +83,6 @@ export default function Home() {
                   movie={movies[currentIndex]}
                   movieIndex={currentIndex}
                   totalMovies={movies.length}
-                  theme="Blue"
                 />
               )}
             </div>

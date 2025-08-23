@@ -17,24 +17,19 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
-} from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // Ensure Card imports are correct
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useFirestore } from "@/hooks/use-firestore";
 import { Movie, initialMovies } from "@/lib/data";
-import { useMovies } from "@/context/MovieContext"; // Import the useMovies hook
 import { Film, Trash2, Home, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function ManagePage() {
-  const { movies, addMovie, updateMovie, deleteMovie } = useMovies(); // Use the useMovies hook
+  const { movies, addMovie, updateMovie, deleteMovie } = useFirestore<Movie>("movies", initialMovies);
   const [editingMovie, setEditingMovie] = useState<Movie | null>(null);
   const { toast } = useToast();
   const [selectedMovies, setSelectedMovies] = useState<string[]>([]);
-  const [cycleSpeed, setCycleSpeed] = useState<number>(5); 
-  // This state needs to be used in the component that displays the posters to apply the selected theme.
-  const [currentTheme, setCurrentTheme] = useState<string>("Blue");
+  const [cycleSpeed, setCycleSpeed] = useState<number>(5);
 
   const handleEdit = (movie: Movie) => {
     setEditingMovie({ ...movie });
@@ -46,8 +41,6 @@ export default function ManagePage() {
 
   const handleSave = async () => {
     if (!editingMovie) return;
-    // Note: In a real app, you'd upload new images to a service like Firebase Storage
-    // and get a new URL. For this demo, we're assuming the URL is a string that can be edited.
     await updateMovie(editingMovie.id, editingMovie);
     setEditingMovie(null);
     toast({
@@ -75,17 +68,12 @@ export default function ManagePage() {
     if (!editingMovie || !e.target.files?.length) return;
     const file = e.target.files[0];
     const reader = new FileReader();
-
     reader.onloadend = () => {
-      // reader.result will be the Base64 string
       const base64String = reader.result as string;
       setEditingMovie({ ...editingMovie, [imageType]: base64String });
     };
-
-    // Read the file as a data URL (Base64)
     reader.readAsDataURL(file);
   };
-  
   
   const handleMovieSelect = (movieId: string) => {
     setSelectedMovies((prevSelected) =>
@@ -107,6 +95,7 @@ export default function ManagePage() {
       description: `${selectedMovies.length} movies have been removed.`,
     });
   };
+
   const generateInfoFile = (movie: Movie) => {
     const content = `Name: ${movie.name}
 Description: ${movie.description}
@@ -208,21 +197,6 @@ Rating: ${movie.rating}`;
         <h1 className="text-3xl font-bold">Manage Posters</h1>
         <div className="flex items-center space-x-4">
            <div className="flex items-center space-x-2">
-            <label htmlFor="themeSelector" className="text-sm font-medium">
-              Select Theme
-            </label>
-             <Select onValueChange={setCurrentTheme} value={currentTheme}>
- <SelectTrigger id="themeSelector" className="w-[180px]">
- <SelectValue placeholder="Select a theme" />
- </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Blue">Blue</SelectItem>
-                <SelectItem value="Pumpkin">Pumpkin</SelectItem>
-                <SelectItem value="Red">Red</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-           <div className="flex items-center space-x-2">
             <label htmlFor="cycleSpeed" className="text-sm font-medium">Cycle Speed (seconds)</label>
             <Input
               id="cycleSpeed"
@@ -257,8 +231,6 @@ Rating: ${movie.rating}`;
                       className="absolute top-2 right-2"
                     />
                  </div>
-
-
               </div>
               <div className="flex flex-wrap justify-center items-center gap-2">
                 <Button onClick={() => handleEdit(movie)} size="sm">Edit</Button>
