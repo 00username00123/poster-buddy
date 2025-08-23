@@ -38,6 +38,8 @@ export default function ManagePage() {
 
   const handleSave = async () => {
     if (!editingMovie) return;
+    // Note: In a real app, you'd upload new images to a service like Firebase Storage
+    // and get a new URL. For this demo, we're assuming the URL is a string that can be edited.
     await updateMovie(editingMovie.id, editingMovie);
     setEditingMovie(null);
     toast({
@@ -65,6 +67,8 @@ export default function ManagePage() {
     if (!editingMovie || !e.target.files?.length) return;
     const file = e.target.files[0];
     const newUrl = URL.createObjectURL(file);
+    // In a real app, you would upload the file to a storage service and get a URL.
+    // For this example, we'll just use the local object URL.
     setEditingMovie({ ...editingMovie, [imageType]: newUrl });
   };
   
