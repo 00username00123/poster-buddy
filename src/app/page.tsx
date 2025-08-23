@@ -29,9 +29,16 @@ export default function Home() {
 
   useEffect(() => {
     setLoading(false); // Set loading to false after movies are loaded
-    const interval = setInterval(goToNext, cycleSpeed * 1000);
-    return () => clearInterval(interval);
-  }, [movies.length]);
+    let interval: NodeJS.Timeout | null = null;
+    if (movies.length > 0) { // Only set interval if there are movies
+      interval = setInterval(goToNext, cycleSpeed * 1000);
+    }
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [movies.length, cycleSpeed]); // Add cycleSpeed to dependencies
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -47,14 +54,6 @@ export default function Home() {
     };
   }, []);
 
-  // Effect to update currentIndex when a new movie is added
-  useEffect(() => {
-    // Check if the movies array has increased in length
-    if (movies.length > 0 && currentIndex !== movies.length - 1) {
-      setCurrentIndex(movies.length - 1); // Update currentIndex to the last index
-    }
-  }, [movies.length]); // This effect runs whenever the movies array length changes
-
   return (
     <>
       <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -67,20 +66,24 @@ export default function Home() {
           </div>
           <div className="flex flex-1 items-center justify-end space-x-2">
             <Link href="/manage">
-              <Button variant="outline">Manage Posters</Button>
+ <Button variant="outline">Manage Posters</Button>
             </Link>
             <UploadDialog
- movies={movies}
- addMovie={(movie) => {
+              movies={movies}
+ addMovie={(movie) => { // This function will be called when a new movie is uploaded
  const newMovie = addMovie(movie); // Call the modified addMovie
+ // After adding the movie, find its index in the updated movies array
  const newIndex = movies.findIndex(m => m.id === newMovie.id);
- setCurrentIndex(newIndex); // Update currentIndex to the new movie
+ if (newIndex !== -1) { // Ensure the movie was found
+ setCurrentIndex(newIndex); // Set the current index to the new movie
+ }
  }}
  />
           </div>
         </div>
-    </header>
-      <div className="container mx-auto px-4 py-8">
+      </header>
+ // Check this line
+ <div className="container mx-auto px-4 py-8">
         {loading ? (
           <div className="text-center">
             <p>Loading movies...</p> {/* Loading indicator */}
@@ -92,7 +95,9 @@ export default function Home() {
          ) : (
           <>
             <div className="items-center">
-              <PosterView movie={movies[currentIndex]} movieIndex={currentIndex} totalMovies={movies.length} theme="Blue" /> {/* Theme is not managed by useMovies, defaulting to Blue */}
+              {movies[currentIndex] && ( // Conditionally render PosterView
+                <PosterView movie={movies[currentIndex]} movieIndex={currentIndex} totalMovies={movies.length} theme="Blue" /> {/* Theme is not managed by useMovies, defaulting to Blue */}
+              )}
            </div>
             <div className="flex items-center justify-center mt-8 gap-4">
               <Button variant="outline" size="icon" onClick={goToPrevious} disabled={movies.length <= 1}>
@@ -120,5 +125,5 @@ export default function Home() {
         )}
       </div>
     </>
-  );
+  ); // Add the closing fragment here
 }
