@@ -61,7 +61,14 @@ export default function Home() {
             <Link href="/manage">
               <Button variant="outline">Manage Posters</Button>
             </Link>
-            <UploadDialog movies={movies} addMovie={addMovie} />
+            <UploadDialog
+ movies={movies}
+ addMovie={(movie) => {
+ const newMovie = addMovie(movie); // Call the modified addMovie
+ const newIndex = movies.findIndex(m => m.id === newMovie.id);
+ setCurrentIndex(newIndex); // Update currentIndex to the new movie
+ }}
+ />
           </div>
         </div>
     </header>
