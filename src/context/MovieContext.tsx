@@ -5,7 +5,7 @@ import { Movie, initialMovies } from '@/lib/data';
 
 interface MovieContextType {
   movies: Movie[];
-  addMovie: (movie: Movie) => void;
+  addMovie: (movie: Movie) => Movie; // Updated return type
   updateMovie: (id: string, updatedMovie: Partial<Movie>) => void;
   deleteMovie: (id: string) => void;
 }
@@ -34,10 +34,11 @@ export const MovieProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   }, [movies]);
 
-  const addMovie = (movie: Movie) => {
+  const addMovie = (movie: Movie): Movie => {
     // Generate a simple unique ID for new movies
     const newMovie = { ...movie, id: Date.now().toString() };
     setMovies([...movies, newMovie]);
+    return newMovie; // Return the newly added movie
   };
 
   const updateMovie = (id: string, updatedMovie: Partial<Movie>) => {
