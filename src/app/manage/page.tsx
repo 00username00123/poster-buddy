@@ -29,7 +29,13 @@ export default function ManagePage() {
   const [editingMovie, setEditingMovie] = useState<Movie | null>(null);
   const { toast } = useToast();
   const [selectedMovies, setSelectedMovies] = useState<string[]>([]);
-  const [cycleSpeed, setCycleSpeed] = useState<number>(5);
+  const [cycleSpeed, setCycleSpeed] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const savedSpeed = localStorage.getItem('cycleSpeed');
+      return savedSpeed ? Number(savedSpeed) : 5;
+    }
+    return 5;
+  });
 
   const handleEdit = (movie: Movie) => {
     setEditingMovie({ ...movie });
@@ -202,10 +208,18 @@ Rating: ${movie.rating}`;
               id="cycleSpeed"
               type="number"
               value={cycleSpeed}
-              onChange={(e) => setCycleSpeed(Number(e.target.value))}
+              onChange={(e) => {
+                const newSpeed = Number(e.target.value);
+                setCycleSpeed(newSpeed);
+                if (typeof window !== 'undefined') {
+                  localStorage.setItem('cycleSpeed', String(newSpeed));
+                }
+              }}
+  
               className="w-20"
               min="1"
             />
+
           </div>
           {selectedMovies.length > 0 && (
             <>

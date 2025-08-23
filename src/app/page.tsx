@@ -11,7 +11,13 @@ import { Movie, initialMovies } from "@/lib/data";
 
 export default function Home() {
   const { movies, addMovie } = useFirestore<Movie>("movies", initialMovies); 
-  const cycleSpeed = 5; // Cycling speed in seconds
+  const [cycleSpeed, setCycleSpeed] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const storedSpeed = localStorage.getItem('cycleSpeed');
+      return storedSpeed ? parseInt(storedSpeed, 10) : 5;
+    }
+    return 5;
+  }); // Cycling speed in seconds
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
 
@@ -34,7 +40,7 @@ export default function Home() {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [movies.length, cycleSpeed]);
+  }, [movies.length, cycleSpeed, goToNext]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
