@@ -74,11 +74,18 @@ export default function ManagePage() {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>, imageType: 'posterUrl' | 'logoUrl') => {
     if (!editingMovie || !e.target.files?.length) return;
     const file = e.target.files[0];
-    const newUrl = URL.createObjectURL(file);
-    // In a real app, you would upload the file to a storage service and get a URL.
-    // For this example, we'll just use the local object URL.
-    setEditingMovie({ ...editingMovie, [imageType]: newUrl });
+    const reader = new FileReader();
+
+    reader.onloadend = () => {
+      // reader.result will be the Base64 string
+      const base64String = reader.result as string;
+      setEditingMovie({ ...editingMovie, [imageType]: base64String });
+    };
+
+    // Read the file as a data URL (Base64)
+    reader.readAsDataURL(file);
   };
+  
   
   const handleMovieSelect = (movieId: string) => {
     setSelectedMovies((prevSelected) =>

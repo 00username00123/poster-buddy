@@ -1,5 +1,5 @@
 "use client";
-
+import { useEffect } from 'react';
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { Movie, initialMovies } from '@/lib/data';
 
@@ -13,7 +13,26 @@ interface MovieContextType {
 const MovieContext = createContext<MovieContextType | undefined>(undefined);
 
 export const MovieProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [movies, setMovies] = useState<Movie[]>(initialMovies);
+  const [movies, setMovies] = useState<Movie[]>(() => {
+    // Initialize state from localStorage
+    if (typeof window !== 'undefined') {
+      const savedMovies = localStorage.getItem('movies');
+      if (savedMovies) {
+        return JSON.parse(savedMovies);
+      }
+    } else {
+ return initialMovies; // If localStorage is empty, use initialMovies
+    }
+    return []; // Initialize with an empty array if not in a browser environment
+  });
+
+  useEffect(() => {
+    // Save movies to localStorage whenever the movies state changes
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('movies', JSON.stringify(movies));
+      console.log('Movies state updated and saved to localStorage:', movies);
+    }
+  }, [movies]);
 
   const addMovie = (movie: Movie) => {
     // Generate a simple unique ID for new movies

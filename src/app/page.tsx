@@ -7,11 +7,12 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { PosterView } from "@/components/poster-view";
 import { Movie, initialMovies } from "@/lib/data";
 import { UploadDialog } from "@/components/upload-dialog";
-import { useFirestore } from "@/hooks/use-firestore";
-import { Film } from "lucide-react";
+import { useMovies } from "@/context/MovieContext"; // Import the useMovies hook
+import { Film } from "lucide-react"; 
 
 export default function Home() {
-  const { movies, addMovie } = useFirestore<Movie[]>("movies", initialMovies);
+  const { movies, addMovie } = useMovies(); // Use the useMovies hook
+  const cycleSpeed = 5; // Fixed cycling speed in seconds
   const [currentIndex, setCurrentIndex] = useState(0);
 
   const goToPrevious = () => {
@@ -25,7 +26,7 @@ export default function Home() {
   };
 
   useEffect(() => {
-    const interval = setInterval(goToNext, 7000);
+    const interval = setInterval(goToNext, cycleSpeed * 1000);
     return () => clearInterval(interval);
   }, [movies.length]);
 
@@ -62,7 +63,7 @@ export default function Home() {
             <UploadDialog movies={movies} addMovie={addMovie} />
           </div>
         </div>
-      </header>
+    </header>
       <div className="container mx-auto px-4 py-8">
         {!currentMovie ? (
            <div className="text-center">
@@ -71,7 +72,7 @@ export default function Home() {
          ) : (
           <>
             <div className="items-center">
-              <PosterView movie={currentMovie} movieIndex={currentIndex} totalMovies={movies.length} />
+              <PosterView movie={currentMovie} movieIndex={currentIndex} totalMovies={movies.length} theme="Blue" /> {/* Theme is not managed by useMovies, defaulting to Blue */}
             </div>
             <div className="flex items-center justify-center mt-8 gap-4">
               <Button variant="outline" size="icon" onClick={goToPrevious} disabled={movies.length <= 1}>
