@@ -8,6 +8,7 @@ interface MovieContextType {
   addMovie: (movie: UploadedMovie) => Movie;
   updateMovie: (id: string, updatedMovie: Partial<Movie>) => void;
   deleteMovie: (id: string) => void;
+  setMovies: (movies: Movie[]) => void; // Added setMovies function
 }
 
 const MovieContext = createContext<MovieContextType | undefined>(undefined);
@@ -15,28 +16,9 @@ const MovieContext = createContext<MovieContextType | undefined>(undefined);
 export const MovieProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [movies, setMovies] = useState<Movie[]>(() => {
     if (typeof window !== 'undefined') {
-      try {
-        const savedMovies = localStorage.getItem('movies');
-        if (savedMovies) {
-          return JSON.parse(savedMovies);
-        }
-      } catch (e) {
-        console.error("Failed to parse movies from localStorage", e);
-      }
     }
-    return initialMovies;
+    return []; // Start with an empty array, movies will be loaded from Firestore
   });
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const serializedMovies = JSON.stringify(movies);
-        localStorage.setItem('movies', serializedMovies);
-      } catch (e) {
-        console.error("Failed to save movies to localStorage", e);
-      }
-    }
-  }, [movies]);
 
 
   const addMovie = (movie: UploadedMovie): Movie => {
@@ -59,7 +41,7 @@ export const MovieProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
   return (
-    <MovieContext.Provider value={{ movies, addMovie, updateMovie, deleteMovie }}>
+    <MovieContext.Provider value={{ movies, addMovie, updateMovie, deleteMovie, setMovies }}>
       {children}
     </MovieContext.Provider>
   );

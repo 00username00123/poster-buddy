@@ -22,8 +22,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Movie } from "@/lib/data";
 import { Film, Trash2, Home, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { db } from "@/lib/firebase"; // Import Firebase db
-import { doc, setDoc } from "firebase/firestore"; // Import Firestore functions
+import { db } from "@/lib/firebase";
+import { doc, setDoc, collection, getDocs, getDoc } from "firebase/firestore";
 
 interface MovieCardProps {
   movie: Movie;
@@ -88,20 +88,40 @@ const MovieCard: React.FC<MovieCardProps> = ({
 
 
 export default function ManagePage() {
-  const { movies, updateMovie, deleteMovie } = useMovies();  
+  const { movies, updateMovie, deleteMovie, setMovies } = useMovies();
   const [editingMovie, setEditingMovie] = useState<Movie | null>(null);  
   const { toast } = useToast();
   const [selectedMovies, setSelectedMovies] = useState<string[]>([]);
-  const [cycleSpeed, setCycleSpeed] = useState<number>(() => {    
-    if (typeof window !== 'undefined') {      
-      const savedSpeed = localStorage.getItem('cycleSpeed');      
-      return savedSpeed ? Number(savedSpeed) : 5;    
-    }    
-    return 5;  
-  });
+  const [cycleSpeed, setCycleSpeed] = useState<number>(5);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, "movies"));
+        const fetchedMovies: Movie[] = [];
+        querySnapshot.forEach((doc) => {
+          fetchedMovies.push({ id: doc.id, ...doc.data() } as Movie);
+        });
+        setMovies(fetchedMovies);
+
+        const settingsDocRef = doc(db, "settings", "user-settings");
+        const settingsDocSnap = await getDoc(settingsDocRef);
+
+        if (settingsDocSnap.exists()) {
+          const settingsData = settingsDocSnap.data();
+          if (settingsData.cycleSpeed !== undefined) {
+            setCycleSpeed(settingsData.cycleSpeed);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching data from Firestore:", error);
+        toast({ title: "Load Failed", description: "An error occurred while loading data.", variant: "destructive" });
+      }
+    };
+    fetchData();
+  }, [setMovies, toast]);
 
   const handleEdit = (movie: Movie) => {
-    // Create a deep copy to avoid editing the original state directly
     setEditingMovie(JSON.parse(JSON.stringify(movie)));
   };
 
@@ -173,16 +193,18 @@ export default function ManagePage() {
   
   const handleSaveLayout = async () => {
     try {
-      // Save each movie to Firestore
       await Promise.all(movies.map(movie => {
-        // Use movie.id as the document ID
         return setDoc(doc(db, "movies", movie.id), movie);
       }));
       
-      toast({ title: "Movies Saved", description: "All movie data has been saved to Firestore." });
+      await setDoc(doc(db, "settings", "user-settings"), {
+        cycleSpeed: cycleSpeed,
+      });
+
+      toast({ title: "Layout Saved", description: "Movie data and settings have been saved to Firestore." });
     } catch (error) {
-      console.error("Error saving movies to Firestore:", error);
-      toast({ title: "Save Failed", description: "An error occurred while saving movies.", variant: "destructive" });
+      console.error("Error saving layout to Firestore:", error);
+      toast({ title: "Save Failed", description: "An error occurred while saving the layout.", variant: "destructive" });
     }
   };
 
@@ -294,19 +316,10 @@ Rating: ${movie.rating}`;
               id="cycleSpeed"
               type="number"
               value={cycleSpeed}
-              onChange={(e) => {
-                const newSpeed = Number(e.target.value);
-                setCycleSpeed(newSpeed);
-                if (typeof window !== 'undefined') {
-                  localStorage.setItem('cycleSpeed', String(newSpeed));
-                }
-              }}
-  
+              onChange={(e) => setCycleSpeed(Number(e.target.value))}
               className="w-20"
               min="1"
             />
-
-
           </div>
           {movies.length > 0 && <Button onClick={handleSelectAll} variant="outline">
             {selectedMovies.length === movies.length ? 'Deselect All' : 'Select All'}

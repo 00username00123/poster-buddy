@@ -7,33 +7,37 @@ import { ChevronLeft, ChevronRight, Film } from "lucide-react";
 import { PosterView } from "@/components/poster-view";
 import { useMovies } from "@/context/MovieContext";
 import { UploadDialog } from "@/components/upload-dialog";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 export default function Home() {
-  const [cycleSpeed, setCycleSpeed] = useState<number>(() => {
-    if (typeof window !== 'undefined') {
-      const storedSpeed = localStorage.getItem('cycleSpeed');
-      return storedSpeed ? parseInt(storedSpeed, 10) : 5;
-    }
-    return 5;
-  }); // Cycling speed in seconds
+  const [cycleSpeed, setCycleSpeed] = useState<number>(5);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
-  const { movies, addMovie } = useMovies();
+  const { movies, setMovies } = useMovies();
+
+  useEffect(() => {
+    const settingsDocRef = doc(db, "settings", "user-settings");
+    getDoc(settingsDocRef).then((docSnap) => {
+      if (docSnap.exists()) {
+        const settingsData = docSnap.data();
+        if (settingsData.cycleSpeed !== undefined) {
+          setCycleSpeed(settingsData.cycleSpeed);
+        }
+      }
+    });
+  }, []);
 
   const goToPrevious = useCallback(() => {
-    setCurrentIndex((prevIndex) => {
-      const newIndex = prevIndex === 0 ? movies.length - 1 : prevIndex - 1;
-      console.log(`goToPrevious: prevIndex=${prevIndex}, movies.length=${movies.length}, newIndex=${newIndex}`);
-      return newIndex;
-    });
+    if (movies.length === 0) return;
+    setCurrentIndex((prevIndex) =>
+      prevIndex === 0 ? movies.length - 1 : prevIndex - 1
+    );
   }, [movies.length]);
 
- const goToNext = useCallback(() => {
-    setCurrentIndex((prevIndex) => {
-      const newIndex = (prevIndex + 1) % movies.length;
-      console.log(`goToNext: prevIndex=${prevIndex}, movies.length=${movies.length}, newIndex=${newIndex}`);
-      return newIndex;
-    });
+  const goToNext = useCallback(() => {
+    if (movies.length === 0) return;
+    setCurrentIndex((prevIndex) => (prevIndex + 1) % movies.length);
   }, [movies.length]);
 
   useEffect(() => {
@@ -44,8 +48,8 @@ export default function Home() {
     }
     return () => {
       if (interval) clearInterval(interval);
-    }; // Add movies to dependencies to re-run effect when movies are loaded
-  }, [movies.length, cycleSpeed, goToNext, movies]);
+    };
+  }, [movies.length, cycleSpeed, goToNext]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -57,9 +61,7 @@ export default function Home() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
-
-  console.log("Home page useEffect triggered. currentIndex:", currentIndex, "movies:", movies);
+  }, [goToPrevious, goToNext]);
 
   return (
     <>
@@ -91,8 +93,7 @@ export default function Home() {
         ) : (
           <>
             <div className="items-center">
-              {movies[currentIndex] && (
-                console.log("Rendering PosterView with movie:", movies[currentIndex]),
+              {movies.length > 0 && movies[currentIndex] && (
                 <PosterView
                   movie={movies[currentIndex]}
                   movieIndex={currentIndex}
@@ -140,4 +141,3 @@ export default function Home() {
     </>
   );
 }
-
