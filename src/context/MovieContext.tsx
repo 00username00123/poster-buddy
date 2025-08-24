@@ -25,7 +25,7 @@ export const MovieProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      localStorage.setItem('movies', JSON.stringify(movies));
+      localStorage.setItem('movies', JSON.stringify(movies.slice(0, 100))); // Save only the first 100 movies
     }
   }, [movies]);
 

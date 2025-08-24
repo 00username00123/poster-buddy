@@ -86,6 +86,7 @@ export default function Home() {
           <>
             <div className="items-center">
               {movies[currentIndex] && (
+                console.log("Rendering PosterView with movie:", movies[currentIndex]),
                 <PosterView
                   movie={movies[currentIndex]}
                   movieIndex={currentIndex}
