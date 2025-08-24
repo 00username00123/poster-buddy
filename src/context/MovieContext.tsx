@@ -13,6 +13,9 @@ interface MovieContextType {
 const MovieContext = createContext<MovieContextType | undefined>(undefined);
 
 export const MovieProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('movies');
+  }
   const [movies, setMovies] = useState<Movie[]>(() => {
     if (typeof window !== 'undefined') {
       const savedMovies = localStorage.getItem('movies');
@@ -23,11 +26,11 @@ export const MovieProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     return initialMovies;
   });
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('movies', JSON.stringify(movies.slice(0, 100))); // Save only the first 100 movies
-    }
-  }, [movies]);
+  // useEffect(() => {
+  //   if (typeof window !== 'undefined') {
+  //     localStorage.setItem('movies', JSON.stringify(movies.slice(0, 100))); // Save only the first 100 movies
+  //   }
+  // }, [movies]);
 
   const addMovie = (movie: Omit<Movie, 'id'>): Movie => {
     const newMovie = { ...movie, id: Date.now().toString() };
