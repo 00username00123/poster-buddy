@@ -287,7 +287,7 @@ Rating: ${movie.rating}`;
         </div>
       </header>
     <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
         <h1 className="text-3xl font-bold">Manage Posters</h1>
         <div className="flex items-center space-x-4">
            <div className="flex items-center space-x-2">

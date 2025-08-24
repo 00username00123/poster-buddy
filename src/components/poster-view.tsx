@@ -18,6 +18,8 @@ export function PosterView({ movie, movieIndex, totalMovies }: PosterViewProps) 
       <div className="w-full lg:w-1/2 flex justify-center lg:justify-start">
         <Image
           src={movie.posterUrl || '/placeholder-poster.png'}
+ width={600}
+ height={900}
           alt={`${movie.name} Poster`}
           className="rounded-lg shadow-2xl object-contain w-auto h-auto max-h-[calc(100vh-100px)]"
           data-ai-hint={movie.posterAiHint || "Movie poster"}
