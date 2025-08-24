@@ -39,7 +39,12 @@ export const MovieProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
   const updateMovie = (id: string, updatedMovie: Partial<Movie>) => {
-    setMovies(prevMovies => prevMovies.map(movie => movie.id === id ? { ...movie, ...updatedMovie } : movie));
+    setMovies(prevMovies => {
+      const index = prevMovies.findIndex(movie => movie.id === id);
+      if (index === -1) return prevMovies;
+      const newMovies = [...prevMovies.slice(0, index), { ...prevMovies[index], ...updatedMovie }, ...prevMovies.slice(index + 1)];
+      return newMovies;
+    });
   };
 
   const deleteMovie = (id: string) => {

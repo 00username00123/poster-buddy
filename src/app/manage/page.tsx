@@ -87,7 +87,9 @@ export default function ManagePage() {
 
   const handleSave = () => {
     if (!editingMovie) return;
-    updateMovie(editingMovie.id, editingMovie);
+    console.log("Saving movie:", editingMovie);
+    const updatedMovieData = JSON.parse(JSON.stringify(editingMovie)); // Deep copy
+ updateMovie(updatedMovieData.id, updatedMovieData);
     setEditingMovie(null);
     toast({
       title: "Movie Saved",
