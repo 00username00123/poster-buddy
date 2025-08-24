@@ -47,7 +47,10 @@ export default function ManagePage() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     if (!editingMovie) return;
     const { name, value } = e.target;
-    setEditingMovie({ ...editingMovie, [name]: value });
+    setEditingMovie(prevEditingMovie => ({
+      ...prevEditingMovie!,
+      [name]: value
+    }));
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>, imageType: 'posterUrl' | 'logoUrl') => {
