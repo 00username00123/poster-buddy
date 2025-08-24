@@ -19,9 +19,7 @@ export function PosterView({ movie, movieIndex, totalMovies }: PosterViewProps) 
         <Image
           src={movie.posterUrl || '/placeholder-poster.png'}
           alt={`${movie.name} Poster`}
-          width={2340}
-          height={3510}
-          className="rounded-lg shadow-2xl object-contain w-auto max-h-[calc(100vh-100px)]"
+          className="rounded-lg shadow-2xl object-contain w-auto h-auto max-h-[calc(100vh-100px)]"
           data-ai-hint={movie.posterAiHint || "Movie poster"}
           priority={movieIndex === 0}
         />
