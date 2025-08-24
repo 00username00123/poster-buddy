@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Film } from "lucide-react";
@@ -20,17 +20,21 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const { movies, addMovie } = useMovies();
 
-  const goToPrevious = () => {
-    setCurrentIndex((prevIndex) => (prevIndex === 0 ? movies.length - 1 : prevIndex - 1));
-  };
+  const goToPrevious = useCallback(() => {
+    setCurrentIndex((prevIndex) => {
+      const newIndex = prevIndex === 0 ? movies.length - 1 : prevIndex - 1;
+      console.log(`goToPrevious: prevIndex=${prevIndex}, movies.length=${movies.length}, newIndex=${newIndex}`);
+      return newIndex;
+    });
+  }, [movies.length]);
 
-  const addMovies = (newMovies: Movie[]) => {
-    setMovies(prevMovies => [...prevMovies, ...newMovies]);
-  };
-
-  const goToNext = () => {
-    setCurrentIndex((prevIndex) => (prevIndex + 1) % movies.length);
-  };
+ const goToNext = useCallback(() => {
+    setCurrentIndex((prevIndex) => {
+      const newIndex = (prevIndex + 1) % movies.length;
+      console.log(`goToNext: prevIndex=${prevIndex}, movies.length=${movies.length}, newIndex=${newIndex}`);
+      return newIndex;
+    });
+  }, [movies.length]);
 
   useEffect(() => {
     setLoading(false);
@@ -40,8 +44,8 @@ export default function Home() {
     }
     return () => {
       if (interval) clearInterval(interval);
-    };
-  }, [movies.length, cycleSpeed, goToNext]);
+    }; // Add movies to dependencies to re-run effect when movies are loaded
+  }, [movies.length, cycleSpeed, goToNext, movies]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -54,6 +58,8 @@ export default function Home() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
+
+  console.log("Home page useEffect triggered. currentIndex:", currentIndex, "movies:", movies);
 
   return (
     <>
@@ -134,3 +140,4 @@ export default function Home() {
     </>
   );
 }
+

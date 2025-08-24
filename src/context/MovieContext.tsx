@@ -40,9 +40,12 @@ export const MovieProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const updateMovie = (id: string, updatedMovie: Partial<Movie>) => {
     setMovies(prevMovies => {
+ console.log("Movies before update:", prevMovies);
       const index = prevMovies.findIndex(movie => movie.id === id);
       if (index === -1) return prevMovies;
       const newMovies = [...prevMovies.slice(0, index), { ...prevMovies[index], ...updatedMovie }, ...prevMovies.slice(index + 1)];
+ console.log("Movies after update:", newMovies);
+
       return newMovies;
     });
   };
