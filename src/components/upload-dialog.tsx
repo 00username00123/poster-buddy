@@ -14,7 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Upload } from "lucide-react";
-import type { Movie, UploadedMovie } from '@/lib/data';
+import type { UploadedMovie } from '@/lib/data';
 import { useMovies } from '@/context/MovieContext';
 
 export function UploadDialog() {
@@ -50,6 +50,9 @@ export function UploadDialog() {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = (event) => {
+          if (!event.target?.result) {
+            return reject(new Error("Failed to read file."));
+          }
           const img = new Image();
           img.onload = () => {
             const canvas = document.createElement('canvas');
@@ -114,7 +117,6 @@ export function UploadDialog() {
             const posterUrl = await resizePoster(group.poster);
             const logoUrl = group.logo ? await fileToDataUrl(group.logo) : 'https://placehold.co/400x150.png';
 
-
             const newMovie: UploadedMovie = {
                 name: info.name || name.replace(/_/g, ' '),
                 posterUrl,
@@ -126,7 +128,6 @@ export function UploadDialog() {
                 genre: info.genre || '',
                 rating: info.rating || '',
                 posterAiHint: `movie poster for ${name}`,
-                id: Date.now().toString() + Math.random().toString(36).substring(2), // Generate a simple unique ID
             };
             uploadedMovies.push(newMovie);
         }

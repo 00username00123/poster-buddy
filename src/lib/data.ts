@@ -12,4 +12,7 @@ export interface Movie {
   posterAiHint: string;
 }
 
+// This is for movies that are being created but don't have a final ID yet.
+export type UploadedMovie = Omit<Movie, 'id'>;
+
 export const initialMovies: Movie[] = [];

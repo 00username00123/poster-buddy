@@ -1,11 +1,11 @@
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { Movie, initialMovies } from '@/lib/data';
+import { Movie, initialMovies, UploadedMovie } from '@/lib/data';
 
 interface MovieContextType {
   movies: Movie[];
-  addMovie: (movie: Omit<Movie, 'id'>) => Movie;
+  addMovie: (movie: UploadedMovie) => Movie;
   updateMovie: (id: string, updatedMovie: Partial<Movie>) => void;
   deleteMovie: (id: string) => void;
 }
@@ -13,51 +13,45 @@ interface MovieContextType {
 const MovieContext = createContext<MovieContextType | undefined>(undefined);
 
 export const MovieProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem('movies');
-  }
   const [movies, setMovies] = useState<Movie[]>(() => {
     if (typeof window !== 'undefined') {
-      const savedMovies = localStorage.getItem('movies');
-      if (savedMovies) {
-        return JSON.parse(savedMovies);
+      try {
+        const savedMovies = localStorage.getItem('movies');
+        if (savedMovies) {
+          return JSON.parse(savedMovies);
+        }
+      } catch (e) {
+        console.error("Failed to parse movies from localStorage", e);
       }
     }
     return initialMovies;
   });
 
-  // useEffect(() => {
-  //   if (typeof window !== 'undefined') {
-  //     localStorage.setItem('movies', JSON.stringify(movies.slice(0, 100))); // Save only the first 100 movies
-  //   }
-  // }, [movies]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const serializedMovies = JSON.stringify(movies);
+        localStorage.setItem('movies', serializedMovies);
+      } catch (e) {
+        console.error("Failed to save movies to localStorage", e);
+      }
+    }
+  }, [movies]);
 
-  const addMovie = (movie: Omit<Movie, 'id'>): Movie => {
-    const newMovie = { ...movie, id: Date.now().toString() };
+
+  const addMovie = (movie: UploadedMovie): Movie => {
+    // Ensure a unique ID is always generated here
+    const newMovie = { ...movie, id: crypto.randomUUID() };
     setMovies(prevMovies => [...prevMovies, newMovie]);
     return newMovie;
   };
 
   const updateMovie = (id: string, updatedMovie: Partial<Movie>) => {
-    console.log("updateMovie called with id:", id, "and updatedMovie:", updatedMovie);
- setMovies(prevMovies => {
- console.log("Movies before update:", prevMovies); // Keep existing log
-      const index = prevMovies.findIndex(movie => movie.id === id);
-      if (index === -1) return prevMovies;
-
-      // Check for duplicate IDs (log only, don't prevent update for testing)
-      const duplicateExists = prevMovies.some((movie, idx) =>
-        movie.id === updatedMovie.id && idx !== index
-      );
-      if (duplicateExists) {
-        console.error(`Warning: Duplicate movie ID found before update: ${updatedMovie.id}`);
-      }
-
-      const newMovies = [...prevMovies.slice(0, index), { ...prevMovies[index], ...updatedMovie as Movie }, ...prevMovies.slice(index + 1)];
- console.log("Movies after update:", newMovies); // Keep existing log
-
-      return newMovies;
-    });
+    setMovies(prevMovies =>
+      prevMovies.map(movie =>
+        movie.id === id ? { ...movie, ...updatedMovie } : movie
+      )
+    );
   };
 
   const deleteMovie = (id: string) => {

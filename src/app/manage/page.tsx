@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -17,25 +17,96 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useMovies } from "@/context/MovieContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; import { Checkbox } from "@/components/ui/checkbox";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; 
+import { Checkbox } from "@/components/ui/checkbox";
 import { Movie } from "@/lib/data";
 import { Film, Trash2, Home, Download } from "lucide-react";
-import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { debounce } from "lodash";
+
+interface MovieCardProps {
+  movie: Movie;
+  selectedMovies: string[];
+  handleMovieSelect: (movieId: string) => void;
+  handleEdit: (movie: Movie) => void;
+  generateInfoFile: (movie: Movie) => void;
+  handleDelete: (movie: Movie) => void;
+}
+
+const MovieCard: React.FC<MovieCardProps> = ({
+  movie,
+  selectedMovies,
+  handleMovieSelect,
+  handleEdit,
+  generateInfoFile,
+  handleDelete,
+}) => {
+  const isSelected = selectedMovies.includes(movie.id);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="truncate text-lg">{movie.name}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="aspect-[2/3] w-full mb-4">
+          <div className="relative">
+            <Image src={movie.posterUrl} alt={`${movie.name} Poster`} width={300} height={450} className="rounded-md object-cover w-full h-full" />
+            <Checkbox
+              checked={isSelected}
+              onCheckedChange={() => handleMovieSelect(movie.id)}
+              className="absolute top-2 right-2"
+            />
+          </div>
+        </div>
+        <div className="flex flex-wrap justify-center items-center gap-2">
+          <Button onClick={() => handleEdit(movie)} size="sm">Edit</Button>
+          <Button onClick={() => generateInfoFile(movie)} size="sm" variant="secondary"><Download className="mr-2 h-4 w-4" /> Info</Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" size="icon"><Trash2 className="h-4 w-4"/></Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will permanently delete the poster for "{movie.name}". This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={() => handleDelete(movie)}>Delete</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
 
 export default function ManagePage() {
-  const { movies, updateMovie, deleteMovie } = useMovies();  const [editingMovie, setEditingMovie] = useState<Movie | null>(null);  const { toast } = useToast();
+  const { movies, updateMovie, deleteMovie } = useMovies();  
+  const [editingMovie, setEditingMovie] = useState<Movie | null>(null);  
+  const { toast } = useToast();
   const [selectedMovies, setSelectedMovies] = useState<string[]>([]);
-  const [cycleSpeed, setCycleSpeed] = useState<number>(() => {    if (typeof window !== 'undefined') {      const savedSpeed = localStorage.getItem('cycleSpeed');      return savedSpeed ? Number(savedSpeed) : 5;    }    return 5;  });
+  const [cycleSpeed, setCycleSpeed] = useState<number>(() => {    
+    if (typeof window !== 'undefined') {      
+      const savedSpeed = localStorage.getItem('cycleSpeed');      
+      return savedSpeed ? Number(savedSpeed) : 5;    
+    }    
+    return 5;  
+  });
 
   const handleEdit = (movie: Movie) => {
-    setEditingMovie({ ...movie });
+    // Create a deep copy to avoid editing the original state directly
+    setEditingMovie(JSON.parse(JSON.stringify(movie)));
   };
 
   const handleCancelEdit = () => {
     setEditingMovie(null);
   };
+  
   const handleDelete = (movieToDelete: Movie) => {
     deleteMovie(movieToDelete.id);
     toast({
@@ -48,10 +119,7 @@ export default function ManagePage() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     if (!editingMovie) return;
     const { name, value } = e.target;
-    setEditingMovie(prevEditingMovie => ({
-      ...prevEditingMovie!,
-      [name]: value
-    }));
+    setEditingMovie(prev => (prev ? { ...prev, [name]: value } : null));
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>, imageType: 'posterUrl' | 'logoUrl') => {
@@ -60,7 +128,7 @@ export default function ManagePage() {
     const reader = new FileReader();
     reader.onloadend = () => {
       const base64String = reader.result as string;
-      setEditingMovie({ ...editingMovie, [imageType]: base64String });
+      setEditingMovie(prev => (prev ? { ...prev, [imageType]: base64String } : null));
     };
     reader.readAsDataURL(file);
   };
@@ -74,60 +142,33 @@ export default function ManagePage() {
   }, []);
 
   const handleSelectAll = () => {
-    setSelectedMovies(movies.map(movie => movie.id));
+    if (selectedMovies.length === movies.length) {
+      setSelectedMovies([]);
+    } else {
+      setSelectedMovies(movies.map(movie => movie.id));
+    }
   };
 
   const handleDeleteSelected = () => {
     selectedMovies.forEach(movieId => deleteMovie(movieId));
-    setSelectedMovies([]);
     toast({
-      title: "Selected Movies Deleted",
-      description: `${selectedMovies.length} movies have been removed.`,
+      title: `${selectedMovies.length} Movies Deleted`,
+      description: `The selected movies have been removed.`,
     });
+    setSelectedMovies([]);
   };
 
- const debouncedUpdateMovie = useRef<((id: string, updatedFields: Partial<Movie>) => void) | null>(null);
-
-  useEffect(() => {
-    // Create the debounced function only once when the component mounts
-    debouncedUpdateMovie.current = debounce(updateMovie, 300);
-
-    // Cleanup function to cancel any pending debounced calls when the component unmounts
-    return () => {
-      if (debouncedUpdateMovie.current) {
-        debouncedUpdateMovie.current.cancel();
-      }
-    };
-  }, [updateMovie]); // Recreate the debounced function if updateMovie changes (shouldn't happen with context)
-
-  const handleSave = useCallback(() => {
-    if (!debouncedUpdateMovie.current) return; // Ensure debounced function is initialized
-
-    console.log("handleSave called");
-    console.log("editingMovie:", editingMovie);
+  const handleSave = () => {
     if (!editingMovie) return;
 
-    const updatedFields: Partial<Movie> = {
-      name: editingMovie.name,
-      description: editingMovie.description,
-      starring: editingMovie.starring,
-      director: editingMovie.director,
-      runtime: editingMovie.runtime,
-      genre: editingMovie.genre,
-      rating: editingMovie.rating,
-      posterUrl: editingMovie.posterUrl,
-      logoUrl: editingMovie.logoUrl,
-      posterAiHint: editingMovie.posterAiHint,
-    };
-
-    console.log("Calling debouncedUpdateMovie");
- debouncedUpdateMovie.current(editingMovie.id, updatedFields);
- setEditingMovie(null);
+    updateMovie(editingMovie.id, editingMovie);
+    setEditingMovie(null);
     toast({
       title: "Movie Saved",
       description: `${editingMovie.name} has been updated.`,
     });
-  }, [editingMovie, debouncedUpdateMovie, toast]);
+  };
+
   const generateInfoFile = (movie: Movie) => {
     const content = `Name: ${movie.name}
 Description: ${movie.description}
@@ -141,7 +182,9 @@ Rating: ${movie.rating}`;
     const a = document.createElement('a');
     a.href = url;
     a.download = `${movie.name.replace(/\s+/g, '_')}_info.txt`;
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
 
@@ -247,54 +290,27 @@ Rating: ${movie.rating}`;
             />
 
           </div>
+          {movies.length > 0 && <Button onClick={handleSelectAll} variant="outline">
+            {selectedMovies.length === movies.length ? 'Deselect All' : 'Select All'}
+          </Button>}
           {selectedMovies.length > 0 && (
-            <>
-              <Button onClick={handleSelectAll} variant="outline">Select All</Button>
-              <Button onClick={handleDeleteSelected} variant="destructive">Delete Selected</Button>
-            </>
+            <Button onClick={handleDeleteSelected} variant="destructive">
+              Delete ({selectedMovies.length})
+            </Button>
           )}
         </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {movies.map((movie) => (
-          <Card key={movie.id}>
-            <CardHeader>
-              <CardTitle className="truncate text-lg">{movie.name}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="aspect-[2/3] w-full mb-4">
-                 <div className="relative">
-                   <Image src={movie.posterUrl} alt={`${movie.name} Poster`} width={300} height={450} className="rounded-md object-cover w-full h-full" />
-                    <Checkbox
-                      checked={selectedMovies.includes(movie.id)}
-                      onCheckedChange={() => handleMovieSelect(movie.id)}
-                      className="absolute top-2 right-2"
-                    />
-                 </div>
-              </div>
-              <div className="flex flex-wrap justify-center items-center gap-2">
-                <Button onClick={() => handleEdit(movie)} size="sm">Edit</Button>
-                <Button onClick={() => generateInfoFile(movie)} size="sm" variant="secondary"><Download className="mr-2 h-4 w-4" /> Info</Button>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive" size="icon"><Trash2 className="h-4 w-4"/></Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This will permanently delete the poster for "{movie.name}". This action cannot be undone.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => handleDelete(movie)}>Delete</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
-            </CardContent>
-          </Card>
+          <MovieCard
+            key={movie.id}
+            movie={movie}
+            selectedMovies={selectedMovies}
+            handleMovieSelect={handleMovieSelect}
+            handleEdit={handleEdit}
+            generateInfoFile={generateInfoFile}
+            handleDelete={handleDelete}
+          />
         ))}
       </div>
     </div>
