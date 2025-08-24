@@ -1,6 +1,5 @@
-"use client";
-
-import { useState } from "react";
+'use client';
+import { useCallback, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -19,9 +18,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useMovies } from "@/context/MovieContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; import { Checkbox } from "@/components/ui/checkbox";
-import { Movie, initialMovies } from "@/lib/data";
+import { Movie } from "@/lib/data";
 import { Film, Trash2, Home, Download } from "lucide-react";
+import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { debounce } from "lodash";
 
 export default function ManagePage() {
   const { movies, updateMovie, deleteMovie } = useMovies();  const [editingMovie, setEditingMovie] = useState<Movie | null>(null);  const { toast } = useToast();
@@ -64,13 +65,13 @@ export default function ManagePage() {
     reader.readAsDataURL(file);
   };
   
-  const handleMovieSelect = (movieId: string) => {
+  const handleMovieSelect = useCallback((movieId: string) => {
     setSelectedMovies((prevSelected) =>
       prevSelected.includes(movieId)
         ? prevSelected.filter((id) => id !== movieId)
         : [...prevSelected, movieId]
     );
-  };
+  }, []);
 
   const handleSelectAll = () => {
     setSelectedMovies(movies.map(movie => movie.id));
@@ -85,17 +86,48 @@ export default function ManagePage() {
     });
   };
 
-  const handleSave = () => {
+ const debouncedUpdateMovie = useRef<((id: string, updatedFields: Partial<Movie>) => void) | null>(null);
+
+  useEffect(() => {
+    // Create the debounced function only once when the component mounts
+    debouncedUpdateMovie.current = debounce(updateMovie, 300);
+
+    // Cleanup function to cancel any pending debounced calls when the component unmounts
+    return () => {
+      if (debouncedUpdateMovie.current) {
+        debouncedUpdateMovie.current.cancel();
+      }
+    };
+  }, [updateMovie]); // Recreate the debounced function if updateMovie changes (shouldn't happen with context)
+
+  const handleSave = useCallback(() => {
+    if (!debouncedUpdateMovie.current) return; // Ensure debounced function is initialized
+
+    console.log("handleSave called");
+    console.log("editingMovie:", editingMovie);
     if (!editingMovie) return;
-    console.log("Saving movie:", editingMovie);
-    const updatedMovieData = JSON.parse(JSON.stringify(editingMovie)); // Deep copy
- updateMovie(updatedMovieData.id, updatedMovieData);
-    setEditingMovie(null);
+
+    const updatedFields: Partial<Movie> = {
+      name: editingMovie.name,
+      description: editingMovie.description,
+      starring: editingMovie.starring,
+      director: editingMovie.director,
+      runtime: editingMovie.runtime,
+      genre: editingMovie.genre,
+      rating: editingMovie.rating,
+      posterUrl: editingMovie.posterUrl,
+      logoUrl: editingMovie.logoUrl,
+      posterAiHint: editingMovie.posterAiHint,
+    };
+
+    console.log("Calling debouncedUpdateMovie");
+ debouncedUpdateMovie.current(editingMovie.id, updatedFields);
+ setEditingMovie(null);
     toast({
       title: "Movie Saved",
       description: `${editingMovie.name} has been updated.`,
     });
-  };
+  }, [editingMovie, debouncedUpdateMovie, toast]);
   const generateInfoFile = (movie: Movie) => {
     const content = `Name: ${movie.name}
 Description: ${movie.description}
@@ -170,7 +202,7 @@ Rating: ${movie.rating}`;
               <Button variant="outline" onClick={handleCancelEdit}>Cancel</Button>
             </div>
           </CardContent>
-        </Card>
+ </Card>
       </div>
     );
   }

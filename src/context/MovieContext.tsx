@@ -39,12 +39,22 @@ export const MovieProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
   const updateMovie = (id: string, updatedMovie: Partial<Movie>) => {
-    setMovies(prevMovies => {
- console.log("Movies before update:", prevMovies);
+    console.log("updateMovie called with id:", id, "and updatedMovie:", updatedMovie);
+ setMovies(prevMovies => {
+ console.log("Movies before update:", prevMovies); // Keep existing log
       const index = prevMovies.findIndex(movie => movie.id === id);
       if (index === -1) return prevMovies;
-      const newMovies = [...prevMovies.slice(0, index), { ...prevMovies[index], ...updatedMovie }, ...prevMovies.slice(index + 1)];
- console.log("Movies after update:", newMovies);
+
+      // Check for duplicate IDs (log only, don't prevent update for testing)
+      const duplicateExists = prevMovies.some((movie, idx) =>
+        movie.id === updatedMovie.id && idx !== index
+      );
+      if (duplicateExists) {
+        console.error(`Warning: Duplicate movie ID found before update: ${updatedMovie.id}`);
+      }
+
+      const newMovies = [...prevMovies.slice(0, index), { ...prevMovies[index], ...updatedMovie as Movie }, ...prevMovies.slice(index + 1)];
+ console.log("Movies after update:", newMovies); // Keep existing log
 
       return newMovies;
     });
