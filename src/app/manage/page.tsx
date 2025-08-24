@@ -22,6 +22,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Movie } from "@/lib/data";
 import { Film, Trash2, Home, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { db } from "@/lib/firebase"; // Import Firebase db
+import { doc, setDoc } from "firebase/firestore"; // Import Firestore functions
 
 interface MovieCardProps {
   movie: Movie;
@@ -171,20 +173,16 @@ export default function ManagePage() {
   
   const handleSaveLayout = async () => {
     try {
-      const response = await fetch('/api/save-layout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(movies),
-      });
-      if (response.ok) {
-        toast({ title: "Layout Saved", description: "The current layout has been saved." });
-      } else {
-        toast({ title: "Save Failed", description: "Could not save the layout.", variant: "destructive" });
-      }
+      // Save each movie to Firestore
+      await Promise.all(movies.map(movie => {
+        // Use movie.id as the document ID
+        return setDoc(doc(db, "movies", movie.id), movie);
+      }));
+      
+      toast({ title: "Movies Saved", description: "All movie data has been saved to Firestore." });
     } catch (error) {
-      toast({ title: "Save Failed", description: "An error occurred while saving.", variant: "destructive" });
+      console.error("Error saving movies to Firestore:", error);
+      toast({ title: "Save Failed", description: "An error occurred while saving movies.", variant: "destructive" });
     }
   };
 
