@@ -168,6 +168,25 @@ export default function ManagePage() {
       description: `${editingMovie.name} has been updated.`,
     });
   };
+  
+  const handleSaveLayout = async () => {
+    try {
+      const response = await fetch('/api/save-layout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(movies),
+      });
+      if (response.ok) {
+        toast({ title: "Layout Saved", description: "The current layout has been saved." });
+      } else {
+        toast({ title: "Save Failed", description: "Could not save the layout.", variant: "destructive" });
+      }
+    } catch (error) {
+      toast({ title: "Save Failed", description: "An error occurred while saving.", variant: "destructive" });
+    }
+  };
 
   const generateInfoFile = (movie: Movie) => {
     const content = `Name: ${movie.name}
@@ -289,6 +308,7 @@ Rating: ${movie.rating}`;
               min="1"
             />
 
+
           </div>
           {movies.length > 0 && <Button onClick={handleSelectAll} variant="outline">
             {selectedMovies.length === movies.length ? 'Deselect All' : 'Select All'}
@@ -299,6 +319,7 @@ Rating: ${movie.rating}`;
             </Button>
           )}
         </div>
+        <Button onClick={handleSaveLayout}>Save Layout</Button>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {movies.map((movie) => (
