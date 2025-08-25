@@ -35,6 +35,20 @@ export function UploadDialog({ onUploadComplete }: UploadDialogProps) {
     setFiles(event.target.files);
   };
 
+  const handleOpenChange = (isOpen: boolean) => {
+    if (isUploading && !isOpen) {
+      // Prevent closing while uploading
+      return;
+    }
+    setOpen(isOpen);
+    if (!isOpen) {
+      // Reset state when dialog is closed
+      setIsUploading(false);
+      setFiles(null);
+    }
+  };
+
+
   const fileToDataUrl = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -154,9 +168,7 @@ export function UploadDialog({ onUploadComplete }: UploadDialogProps) {
 
         toast({ title: "Upload Complete", description: `${validGroups.length} movie(s) have been successfully added.` });
         onUploadComplete();
-        setIsUploading(false);
-        setOpen(false);
-        setFiles(null);
+        setOpen(false); // This will trigger onOpenChange, which resets the state
 
     } catch (error: any) {
        console.error("Error uploading movies:", error);
@@ -166,7 +178,7 @@ export function UploadDialog({ onUploadComplete }: UploadDialogProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => { if (!isUploading) setOpen(isOpen); }}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button>
           <Upload className="mr-2 h-4 w-4" />
@@ -185,7 +197,7 @@ export function UploadDialog({ onUploadComplete }: UploadDialogProps) {
           <div className="grid gap-4 py-4">
             <div className="grid w-full max-w-sm items-center gap-1.5">
               <Label htmlFor="movie-files">Movie Files</Label>
-              <Input id="movie-files" type="file" multiple onChange={handleFileChange} required />
+              <Input id="movie-files" type="file" multiple onChange={handleFileChange} required disabled={isUploading}/>
             </div>
           </div>
           <DialogFooter>
