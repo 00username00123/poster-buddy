@@ -28,6 +28,7 @@ interface UploadDialogProps {
 export function UploadDialog({ onUploadComplete }: UploadDialogProps) {
   const [open, setOpen] = useState(false);
   const [files, setFiles] = useState<FileList | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
  
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => { 
@@ -53,6 +54,9 @@ export function UploadDialog({ onUploadComplete }: UploadDialogProps) {
       return new Promise((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = (event) => {
+              if (!event.target?.result) {
+                return reject(new Error("Failed to read file for resizing."));
+              }
               const img = new Image();
               img.onload = () => {
                   const canvas = document.createElement('canvas');
@@ -69,105 +73,100 @@ export function UploadDialog({ onUploadComplete }: UploadDialogProps) {
                   
                   resolve(canvas.toDataURL('image/jpeg')); 
               };
-              img.onerror = reject;
-              img.src = event.target?.result as string;
+              img.onerror = (err) => reject(new Error(`Image load error for resizing: ${err}`));
+              img.src = event.target.result as string;
           };
-          reader.onerror = reject;
+          reader.onerror = (err) => reject(new Error(`File read error for resizing: ${err}`));
           reader.readAsDataURL(file);
       });
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!files) return;
+    if (!files || files.length === 0) {
+      toast({ title: "No Files Selected", description: "Please select files to upload.", variant: "destructive" });
+      return;
+    }
+    setIsUploading(true);
 
-    const fileGroups: Record<string, { poster?: File, logo?: File, info?: File }> = {};
+    try {
+        const fileGroups: Record<string, { poster?: File, logo?: File, info?: File }> = {};
 
-    for (const file of Array.from(files)) {
-        const parts = file.name.match(/(.+?)_(poster|logo|info)\.\w+$/);
-        if (!parts) continue;
-        
-        const name = parts[1];
-        const type = parts[2] as 'poster' | 'logo' | 'info';
+        for (const file of Array.from(files)) {
+            const parts = file.name.match(/(.+?)[_.]((poster|logo|info))\.\w+$/i);
+            if (!parts) continue;
+            
+            const name = parts[1];
+            const type = parts[2].toLowerCase() as 'poster' | 'logo' | 'info';
 
-        if (!fileGroups[name]) {
-            fileGroups[name] = {};
+            if (!fileGroups[name]) {
+                fileGroups[name] = {};
+            }
+            fileGroups[name][type] = file;
         }
 
-        fileGroups[name][type] = file;
-    }
-    
+        const validGroups = Object.entries(fileGroups).filter(([, group]) => group.poster && group.info);
+        
+        if (validGroups.length === 0) {
+            toast({ title: "No Valid Movie Sets Found", description: "Ensure files are named correctly (e.g., moviename_poster.jpg, moviename_info.txt).", variant: "destructive" });
+            setIsUploading(false);
+            return;
+        }
+        
+        const uploadPromises = validGroups.map(async ([movieName, group]) => {
+            const infoText = await group.info!.text();
+            const info: Record<string, string> = {};
+            const lines = infoText.split('\n');
+            let currentKey = '';
+            let descriptionValue = '';
 
-    let moviesAdded = 0;
-    try {
-      const uploadPromises = Object.keys(fileGroups).map(async (movieName) => {
-          const group = fileGroups[movieName];
-          if (group.poster && group.info) {
-             const infoText = await group.info!.text();
-             const info: Record<string, string> = {};
-             const lines = infoText.split('\n');
-             let descriptionAccumulator = '';
-             let inDescription = false;
-             
-             lines.forEach(line => {
-                 const match = line.match(/^([^:]+):\s*(.*)$/);
-                 if (match) {
-                     inDescription = false;
-                     const key = match[1].toLowerCase().trim().replace(/\s/g, '');
-                     const value = match[2].trim();
-                     info[key] = value;
-                     if(key === 'description') {
-                         descriptionAccumulator = value;
-                         inDescription = true;
-                     }
-                 } else if (inDescription) {
-                     descriptionAccumulator += `\n${line}`;
-                 }
-             });
-             info.description = descriptionAccumulator.trim();
+            lines.forEach(line => {
+                const match = line.match(/^([^:]+):\s*(.*)$/);
+                if (match) {
+                    currentKey = match[1].toLowerCase().trim().replace(/\s+/g, '');
+                    info[currentKey] = match[2].trim();
+                } else if (currentKey === 'description') {
+                    info.description += `\n${line.trim()}`;
+                }
+            });
+            Object.keys(info).forEach(key => info[key] = info[key].trim());
 
+            const posterUrl = await resizePoster(group.poster!);
+            const logoUrl = group.logo ? await fileToDataUrl(group.logo) : 'https://placehold.co/400x150.png';
 
-             const posterUrl = await resizePoster(group.poster!);
-             const logoUrl = group.logo ? await fileToDataUrl(group.logo) : 'https://placehold.co/400x150.png';
+            const newMovie: UploadedMovie = {
+                name: info.name || movieName.replace(/_/g, ' '),
+                posterUrl,
+                logoUrl,
+                description: info.description || '',
+                starring: info.starring || '',
+                director: info.director || '',
+                runtime: info.runtime || '',
+                genre: info.genre || '',
+                rating: info.rating || '',
+                posterAiHint: `movie poster for ${info.name || movieName}`,
+            };
+            
+            await addDoc(collection(db, "movies"), newMovie);
+        });
 
-             const newMovie: UploadedMovie = {
-                 name: info.name || movieName.replace(/_/g, ' '),
-                 posterUrl,
-                 logoUrl,
-                 description: info.description || '',
-                 starring: info.starring || '',
-                 director: info.director || '',
-                 runtime: info.runtime || '',
-                 genre: info.genre || '',
-                 rating: info.rating || '',
-                 posterAiHint: `movie poster for ${movieName}`,
-             };
-             
-             await addDoc(collection(db, "movies"), newMovie);
-             moviesAdded++;
-          }
-      });
+        await Promise.all(uploadPromises);
 
-      await Promise.all(uploadPromises);
-
-      if(moviesAdded > 0){
-        toast({ title: "Upload Complete", description: `${moviesAdded} movie(s) have been added.` });
+        toast({ title: "Upload Complete", description: `${validGroups.length} movie(s) have been successfully added.` });
         onUploadComplete();
-      } else {
-        toast({ title: "Upload Info", description: "No valid movie sets found to upload. Ensure files are named correctly (e.g., moviename_poster.jpg, moviename_info.txt).", variant: "default" });
-      }
+        setOpen(false);
+        setFiles(null);
 
     } catch (error: any) {
        console.error("Error uploading movies:", error);
-       toast({ title: "Upload Failed", description: error.message || "An error occurred while uploading.", variant: "destructive" });
+       toast({ title: "Upload Failed", description: error.message || "An unexpected error occurred.", variant: "destructive" });
+    } finally {
+        setIsUploading(false);
     }
-    
-    setOpen(false);
-    setFiles(null);
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isUploading) setOpen(isOpen); }}>
       <DialogTrigger asChild>
         <Button>
           <Upload className="mr-2 h-4 w-4" />
@@ -190,7 +189,9 @@ export function UploadDialog({ onUploadComplete }: UploadDialogProps) {
             </div>
           </div>
           <DialogFooter>
-            <Button type="submit">Upload</Button>
+            <Button type="submit" disabled={isUploading}>
+              {isUploading ? 'Uploading...' : 'Upload'}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>
