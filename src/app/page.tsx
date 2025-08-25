@@ -8,8 +8,7 @@ import { ChevronLeft, ChevronRight, Film } from "lucide-react";
 import { PosterView } from "@/components/poster-view";
 import { Movie } from "@/lib/data";
 import { getMoviesAndSettings } from "@/app/actions";
-import { onSnapshot, doc, getFirestore } from "firebase/firestore";
-import { app } from "@/lib/firebase"; // Required for onSnapshot listener
+import { collection, onSnapshot, doc, getFirestore } from "firebase/firestore";
 
 export default function Home() {
   const [movies, setMovies] = useState<Movie[]>([]);
@@ -32,30 +31,6 @@ export default function Home() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
-
-  useEffect(() => {
-    const db = getFirestore(app);
-    
-    const unsubscribe = onSnapshot(collection(db, 'movies'), (snapshot) => {
-        const fetchedMovies = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Movie));
-        setMovies(fetchedMovies);
-    });
-
-    const unsubscribeSettings = onSnapshot(doc(db, 'settings', 'user-settings'), (doc) => {
-        if (doc.exists()) {
-            const settingsData = doc.data();
-            if (settingsData && settingsData.cycleSpeed !== undefined) {
-                setCycleSpeed(settingsData.cycleSpeed);
-            }
-        }
-    });
-
-    return () => {
-        unsubscribe();
-        unsubscribeSettings();
-    };
-}, []);
-
 
   const goToPrevious = useCallback(() => {
     if (movies.length === 0) return;
