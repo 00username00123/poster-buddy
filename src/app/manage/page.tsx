@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -23,7 +23,7 @@ import { Movie } from "@/lib/data";
 import { Film, Trash2, Home, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
-import { doc, setDoc, collection, getDocs, getDoc } from "firebase/firestore";
+import { doc, setDoc } from "firebase/firestore";
 
 interface MovieCardProps {
   movie: Movie;
@@ -88,38 +88,10 @@ const MovieCard: React.FC<MovieCardProps> = ({
 
 
 export default function ManagePage() {
-  const { movies, updateMovie, deleteMovie, setMovies } = useMovies();
+  const { movies, updateMovie, deleteMovie, cycleSpeed, setCycleSpeed, loading } = useMovies();
   const [editingMovie, setEditingMovie] = useState<Movie | null>(null);  
   const { toast } = useToast();
   const [selectedMovies, setSelectedMovies] = useState<string[]>([]);
-  const [cycleSpeed, setCycleSpeed] = useState<number>(5);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const querySnapshot = await getDocs(collection(db, "movies"));
-        const fetchedMovies: Movie[] = [];
-        querySnapshot.forEach((doc) => {
-          fetchedMovies.push({ id: doc.id, ...doc.data() } as Movie);
-        });
-        setMovies(fetchedMovies);
-
-        const settingsDocRef = doc(db, "settings", "user-settings");
-        const settingsDocSnap = await getDoc(settingsDocRef);
-
-        if (settingsDocSnap.exists()) {
-          const settingsData = settingsDocSnap.data();
-          if (settingsData.cycleSpeed !== undefined) {
-            setCycleSpeed(settingsData.cycleSpeed);
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching data from Firestore:", error);
-        toast({ title: "Load Failed", description: "An error occurred while loading data.", variant: "destructive" });
-      }
-    };
-    fetchData();
-  }, [setMovies, toast]);
 
   const handleEdit = (movie: Movie) => {
     setEditingMovie(JSON.parse(JSON.stringify(movie)));
@@ -194,7 +166,8 @@ export default function ManagePage() {
   const handleSaveLayout = async () => {
     try {
       await Promise.all(movies.map(movie => {
-        return setDoc(doc(db, "movies", movie.id), movie);
+        const { id, ...movieData } = movie;
+        return setDoc(doc(db, "movies", id), movieData);
       }));
       
       await setDoc(doc(db, "settings", "user-settings"), {
@@ -307,44 +280,50 @@ Rating: ${movie.rating}`;
         </div>
       </header>
     <div className="container mx-auto px-4 py-8">
-      <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-        <h1 className="text-3xl font-bold">Manage Posters</h1>
-        <div className="flex items-center space-x-4">
-           <div className="flex items-center space-x-2">
-            <label htmlFor="cycleSpeed" className="text-sm font-medium">Cycle Speed (seconds)</label>
-            <Input
-              id="cycleSpeed"
-              type="number"
-              value={cycleSpeed}
-              onChange={(e) => setCycleSpeed(Number(e.target.value))}
-              className="w-20"
-              min="1"
-            />
+       {loading ? (
+        <div className="text-center"><p>Loading...</p></div>
+      ) : (
+      <>
+        <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+          <h1 className="text-3xl font-bold">Manage Posters</h1>
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <label htmlFor="cycleSpeed" className="text-sm font-medium">Cycle Speed (seconds)</label>
+              <Input
+                id="cycleSpeed"
+                type="number"
+                value={cycleSpeed}
+                onChange={(e) => setCycleSpeed(Number(e.target.value))}
+                className="w-20"
+                min="1"
+              />
+            </div>
+            {movies.length > 0 && <Button onClick={handleSelectAll} variant="outline">
+              {selectedMovies.length === movies.length ? 'Deselect All' : 'Select All'}
+            </Button>}
+            {selectedMovies.length > 0 && (
+              <Button onClick={handleDeleteSelected} variant="destructive">
+                Delete ({selectedMovies.length})
+              </Button>
+            )}
           </div>
-          {movies.length > 0 && <Button onClick={handleSelectAll} variant="outline">
-            {selectedMovies.length === movies.length ? 'Deselect All' : 'Select All'}
-          </Button>}
-          {selectedMovies.length > 0 && (
-            <Button onClick={handleDeleteSelected} variant="destructive">
-              Delete ({selectedMovies.length})
-            </Button>
-          )}
+          <Button onClick={handleSaveLayout}>Save Layout</Button>
         </div>
-        <Button onClick={handleSaveLayout}>Save Layout</Button>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {movies.map((movie) => (
-          <MovieCard
-            key={movie.id}
-            movie={movie}
-            selectedMovies={selectedMovies}
-            handleMovieSelect={handleMovieSelect}
-            handleEdit={handleEdit}
-            generateInfoFile={generateInfoFile}
-            handleDelete={handleDelete}
-          />
-        ))}
-      </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {movies.map((movie) => (
+            <MovieCard
+              key={movie.id}
+              movie={movie}
+              selectedMovies={selectedMovies}
+              handleMovieSelect={handleMovieSelect}
+              handleEdit={handleEdit}
+              generateInfoFile={generateInfoFile}
+              handleDelete={handleDelete}
+            />
+          ))}
+        </div>
+      </>
+      )}
     </div>
     </>
   );

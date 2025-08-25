@@ -7,26 +7,10 @@ import { ChevronLeft, ChevronRight, Film } from "lucide-react";
 import { PosterView } from "@/components/poster-view";
 import { useMovies } from "@/context/MovieContext";
 import { UploadDialog } from "@/components/upload-dialog";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 
 export default function Home() {
-  const [cycleSpeed, setCycleSpeed] = useState<number>(5);
+  const { movies, loading, cycleSpeed } = useMovies();
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const { movies, setMovies } = useMovies();
-
-  useEffect(() => {
-    const settingsDocRef = doc(db, "settings", "user-settings");
-    getDoc(settingsDocRef).then((docSnap) => {
-      if (docSnap.exists()) {
-        const settingsData = docSnap.data();
-        if (settingsData.cycleSpeed !== undefined) {
-          setCycleSpeed(settingsData.cycleSpeed);
-        }
-      }
-    });
-  }, []);
 
   const goToPrevious = useCallback(() => {
     if (movies.length === 0) return;
@@ -41,14 +25,10 @@ export default function Home() {
   }, [movies.length]);
 
   useEffect(() => {
-    setLoading(false);
-    let interval: NodeJS.Timeout | null = null;
-    if (movies.length > 0) {
-      interval = setInterval(goToNext, cycleSpeed * 1000);
+    if (movies.length > 1) {
+      const interval = setInterval(goToNext, cycleSpeed * 1000);
+      return () => clearInterval(interval);
     }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
   }, [movies.length, cycleSpeed, goToNext]);
 
   useEffect(() => {
@@ -62,6 +42,14 @@ export default function Home() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [goToPrevious, goToNext]);
+
+  useEffect(() => {
+    if (currentIndex >= movies.length && movies.length > 0) {
+      setCurrentIndex(movies.length - 1);
+    }
+  }, [movies.length, currentIndex]);
+
+  const currentMovie = movies.length > 0 ? movies[currentIndex] : null;
 
   return (
     <>
@@ -86,20 +74,18 @@ export default function Home() {
           <div className="text-center">
             <p>Loading movies...</p>
           </div>
-        ) : movies.length === 0 ? (
+        ) : !currentMovie ? (
           <div className="text-center">
             <p>No movies to display. Upload some posters to get started!</p>
           </div>
         ) : (
           <>
             <div className="items-center">
-              {movies.length > 0 && movies[currentIndex] && (
-                <PosterView
-                  movie={movies[currentIndex]}
-                  movieIndex={currentIndex}
-                  totalMovies={movies.length}
-                />
-              )}
+              <PosterView
+                movie={currentMovie}
+                movieIndex={currentIndex}
+                totalMovies={movies.length}
+              />
             </div>
             <div className="flex items-center justify-center mt-8 gap-4">
               <Button
