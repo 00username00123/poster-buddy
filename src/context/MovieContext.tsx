@@ -1,109 +1,93 @@
 
 "use client";
 
-import React, { createContext, useContext, useState, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Movie, UploadedMovie } from '@/lib/data';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, doc, getDoc, writeBatch } from 'firebase/firestore';
+import { collection, onSnapshot, doc, writeBatch, deleteDoc, setDoc, updateDoc } from 'firebase/firestore';
 
 interface MovieContextType {
   movies: Movie[];
   cycleSpeed: number;
-  setCycleSpeed: (speed: number) => void;
-  addMovie: (movie: UploadedMovie) => void;
-  updateMovie: (id: string, updatedMovie: Partial<Movie>) => void;
-  deleteMovie: (id: string) => void;
-  setMovies: (movies: Movie[]) => void;
   loading: boolean;
-  setLoading: (loading: boolean) => void;
-  loadData: () => Promise<void>;
-  saveLayout: () => Promise<void>;
+  setCycleSpeed: (speed: number) => void;
+  addMovie: (movie: UploadedMovie) => Promise<void>;
+  updateMovie: (id: string, updatedMovie: Partial<Movie>) => Promise<void>;
+  deleteMovie: (id: string) => Promise<void>;
+  saveLayout: (data: { movies: Movie[], cycleSpeed: number }) => Promise<void>;
 }
 
 const MovieContext = createContext<MovieContextType | undefined>(undefined);
 
-export const loadDataFromFirestore = async (): Promise<{ movies: Movie[]; cycleSpeed: number }> => {
-  const moviesQuerySnapshot = await getDocs(collection(db, "movies"));
-  const fetchedMovies: Movie[] = moviesQuerySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Movie));
-
-  const settingsDocRef = doc(db, "settings", "user-settings");
-  const settingsDocSnap = await getDoc(settingsDocRef);
-  let fetchedCycleSpeed = 7;
-  if (settingsDocSnap.exists()) {
-    const settingsData = settingsDocSnap.data();
-    if (settingsData.cycleSpeed !== undefined) {
-      fetchedCycleSpeed = settingsData.cycleSpeed;
-    }
-  }
-  return { movies: fetchedMovies, cycleSpeed: fetchedCycleSpeed };
-};
-
-export const saveLayoutToFirestore = async (movies: Movie[], cycleSpeed: number) => {
-  const batch = writeBatch(db);
-
-  movies.forEach(movie => {
-    const { id, ...movieData } = movie;
-    const movieRef = doc(db, "movies", id);
-    batch.set(movieRef, movieData);
-  });
-
-  const settingsRef = doc(db, "settings", "user-settings");
-  batch.set(settingsRef, { cycleSpeed });
-
-  await batch.commit();
-};
-
-
 export const MovieProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [movies, setMoviesState] = useState<Movie[]>([]);
-  const [cycleSpeed, setCycleSpeedState] = useState<number>(7);
+  const [movies, setMovies] = useState<Movie[]>([]);
+  const [cycleSpeed, setCycleSpeed] = useState<number>(7);
   const [loading, setLoading] = useState<boolean>(true);
 
-  const addMovie = (movie: UploadedMovie) => {
-    const newMovie = { ...movie, id: crypto.randomUUID() };
-    setMoviesState(prevMovies => [...prevMovies, newMovie]);
-  };
-
-  const updateMovie = (id: string, updatedMovie: Partial<Movie>) => {
-    setMoviesState(prevMovies =>
-      prevMovies.map(movie =>
-        movie.id === id ? { ...movie, ...updatedMovie } : movie
-      )
-    );
-  };
-
-  const deleteMovie = (id: string) => {
-    setMoviesState(prevMovies => prevMovies.filter(movie => movie.id !== id));
-  };
-  
-  const setMovies = (newMovies: Movie[]) => {
-    setMoviesState(newMovies);
-  }
-
-  const setCycleSpeed = (speed: number) => {
-    setCycleSpeedState(speed);
-  }
-
-  const loadData = useCallback(async () => {
+  useEffect(() => {
     setLoading(true);
-    try {
-      const { movies, cycleSpeed } = await loadDataFromFirestore();
-      setMovies(movies);
-      setCycleSpeed(cycleSpeed);
-    } catch (error) {
-      console.error("Error loading data from Firestore:", error);
-    } finally {
+
+    const moviesCollection = collection(db, 'movies');
+    const unsubscribeMovies = onSnapshot(moviesCollection, (snapshot) => {
+      const fetchedMovies = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Movie));
+      setMovies(fetchedMovies);
       setLoading(false);
-    }
+    }, (error) => {
+      console.error("Error fetching movies from Firestore:", error);
+      setLoading(false);
+    });
+
+    const settingsDoc = doc(db, 'settings', 'user-settings');
+    const unsubscribeSettings = onSnapshot(settingsDoc, (doc) => {
+      if (doc.exists()) {
+        const settingsData = doc.data();
+        if (settingsData.cycleSpeed !== undefined) {
+          setCycleSpeed(settingsData.cycleSpeed);
+        }
+      }
+    }, (error) => {
+      console.error("Error fetching settings from Firestore:", error);
+    });
+
+    return () => {
+      unsubscribeMovies();
+      unsubscribeSettings();
+    };
   }, []);
 
-  const saveLayout = useCallback(async () => {
-    await saveLayoutToFirestore(movies, cycleSpeed);
-  }, [movies, cycleSpeed]);
+  const addMovie = async (movie: UploadedMovie) => {
+    const newMovie = { ...movie, id: crypto.randomUUID() };
+    const movieRef = doc(db, "movies", newMovie.id);
+    await setDoc(movieRef, movie); 
+  };
 
+  const updateMovie = async (id: string, updatedMovie: Partial<Movie>) => {
+    const movieRef = doc(db, "movies", id);
+    await updateDoc(movieRef, updatedMovie);
+  };
+
+  const deleteMovie = async (id: string) => {
+    const movieRef = doc(db, "movies", id);
+    await deleteDoc(movieRef);
+  };
+  
+  const saveLayout = async ({ movies: layoutMovies, cycleSpeed: layoutSpeed }: { movies: Movie[], cycleSpeed: number }) => {
+    const batch = writeBatch(db);
+
+    layoutMovies.forEach(movie => {
+      const { id, ...movieData } = movie;
+      const movieRef = doc(db, "movies", id);
+      batch.set(movieRef, movieData);
+    });
+    
+    const settingsRef = doc(db, "settings", "user-settings");
+    batch.set(settingsRef, { cycleSpeed: layoutSpeed });
+
+    await batch.commit();
+  };
 
   return (
-    <MovieContext.Provider value={{ movies, cycleSpeed, setCycleSpeed, addMovie, updateMovie, deleteMovie, setMovies, loading, setLoading, loadData, saveLayout }}>
+    <MovieContext.Provider value={{ movies, cycleSpeed, loading, setCycleSpeed, addMovie, updateMovie, deleteMovie, saveLayout }}>
       {children}
     </MovieContext.Provider>
   );
@@ -116,3 +100,5 @@ export const useMovies = () => {
   }
   return context;
 };
+
+    

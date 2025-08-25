@@ -87,15 +87,10 @@ const MovieCard: React.FC<MovieCardProps> = ({
 
 
 export default function ManagePage() {
-  const { movies, updateMovie, deleteMovie, cycleSpeed, setCycleSpeed, loading, saveLayout, loadData } = useMovies();
+  const { movies, updateMovie, deleteMovie, addMovie, cycleSpeed, setCycleSpeed, loading, saveLayout } = useMovies();
   const [editingMovie, setEditingMovie] = useState<Movie | null>(null);  
   const { toast } = useToast();
   const [selectedMovies, setSelectedMovies] = useState<string[]>([]);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
-
 
   const handleEdit = (movie: Movie) => {
     setEditingMovie(JSON.parse(JSON.stringify(movie)));
@@ -156,10 +151,9 @@ export default function ManagePage() {
     setSelectedMovies([]);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!editingMovie) return;
-
-    updateMovie(editingMovie.id, editingMovie);
+    await updateMovie(editingMovie.id, editingMovie);
     setEditingMovie(null);
     toast({
       title: "Movie Saved",
@@ -169,7 +163,7 @@ export default function ManagePage() {
   
   const handleSaveLayout = async () => {
     try {
-      await saveLayout();
+      await saveLayout({ movies, cycleSpeed });
       toast({ title: "Layout Saved", description: "Your changes have been saved successfully." });
     } catch (error) {
       console.error("Error saving layout:", error);
@@ -324,3 +318,5 @@ Rating: ${movie.rating}`;
     </>
   );
 }
+
+    
