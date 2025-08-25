@@ -23,8 +23,7 @@ import { Movie } from "@/lib/data";
 import { Film, Trash2, Home, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { UploadDialog } from "@/components/upload-dialog";
-import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, writeBatch, getDoc } from "firebase/firestore";
-import { app } from "@/lib/firebase";
+import { getMoviesAndSettings, saveSettings, updateMovie, deleteMovie, deleteSelectedMovies } from "@/app/actions";
 
 interface MovieCardProps {
   movie: Movie;
@@ -96,34 +95,21 @@ export default function ManagePage() {
   const { toast } = useToast();
   const [selectedMovies, setSelectedMovies] = useState<string[]>([]);
   
-  const db = getFirestore(app);
-
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const moviesCollection = collection(db, 'movies');
-      const settingsDocRef = doc(db, 'settings', 'user-settings');
-
-      const [moviesSnapshot, settingsDoc] = await Promise.all([
-        getDocs(moviesCollection),
-        getDoc(settingsDocRef),
-      ]);
-
-      const fetchedMovies = moviesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Movie));
-      setMovies(fetchedMovies);
-
-      if (settingsDoc.exists()) {
-          const settingsData = settingsDoc.data();
-          if (settingsData && settingsData.cycleSpeed !== undefined) {
-              setCycleSpeed(settingsData.cycleSpeed);
-          }
+      const { movies, cycleSpeed, error } = await getMoviesAndSettings();
+      if (error) {
+        throw new Error(error);
       }
+      setMovies(movies || []);
+      setCycleSpeed(cycleSpeed || 7);
     } catch (error) {
       console.error("Error fetching data:", error);
       toast({ title: "Load Failed", description: "Failed to load data from Firestore.", variant: "destructive" });
     }
     setLoading(false);
-  }, [db, toast]);
+  }, [toast]);
 
   useEffect(() => {
     fetchData();
@@ -140,7 +126,8 @@ export default function ManagePage() {
 
   const handleDeleteAction = async (movieToDelete: Movie) => {
     try {
-      await deleteDoc(doc(db, "movies", movieToDelete.id));
+      const result = await deleteMovie(movieToDelete.id);
+      if(!result.success) throw new Error(result.error);
       setMovies(prev => prev.filter(m => m.id !== movieToDelete.id));
       toast({
           title: "Movie Deleted",
@@ -189,13 +176,8 @@ export default function ManagePage() {
 
   const handleDeleteSelectedAction = async () => {
     try {
-        const batch = writeBatch(db);
-        selectedMovies.forEach(movieId => {
-            const docRef = doc(db, "movies", movieId);
-            batch.delete(docRef);
-        });
-        await batch.commit();
-
+        const result = await deleteSelectedMovies(selectedMovies);
+        if(!result.success) throw new Error(result.error);
         setMovies(prev => prev.filter(m => !selectedMovies.includes(m.id)));
         toast({
             title: `${selectedMovies.length} Movies Deleted`,
@@ -211,7 +193,8 @@ export default function ManagePage() {
   const handleSave = async () => {
     if (!editingMovie) return;
     try {
-        await setDoc(doc(db, "movies", editingMovie.id), editingMovie);
+        const result = await updateMovie(editingMovie);
+        if(!result.success) throw new Error(result.error);
         setMovies(prev => prev.map(m => m.id === editingMovie.id ? editingMovie : m));
         toast({
             title: "Movie Updated",
@@ -226,8 +209,8 @@ export default function ManagePage() {
 
   const handleSaveLayout = async () => {
     try {
-      const settingsRef = doc(db, 'settings', 'user-settings');
-      await setDoc(settingsRef, { cycleSpeed });
+      const result = await saveSettings(cycleSpeed);
+      if(!result.success) throw new Error(result.error);
       toast({ title: "Settings Saved", description: "Your changes have been saved successfully." });
     } catch(error) {
        console.error("Error saving settings:", error);
@@ -397,5 +380,3 @@ Rating: ${movie.rating}`;
     </>
   );
 }
-
-    

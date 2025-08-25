@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Film } from "lucide-react";
 import { PosterView } from "@/components/poster-view";
 import { Movie } from "@/lib/data";
-import { getFirestore, collection, onSnapshot, doc, getDoc } from "firebase/firestore";
-import { app } from "@/lib/firebase";
+import { getMoviesAndSettings } from "@/app/actions";
+import { onSnapshot, doc, getFirestore } from "firebase/firestore";
+import { app } from "@/lib/firebase"; // Required for onSnapshot listener
 
 export default function Home() {
   const [movies, setMovies] = useState<Movie[]>([]);
@@ -16,39 +17,31 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
 
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    const { movies: fetchedMovies, cycleSpeed: fetchedCycleSpeed, error } = await getMoviesAndSettings();
+    if (error) {
+      console.error("Error fetching data:", error);
+    } else {
+      setMovies(fetchedMovies || []);
+      setCycleSpeed(fetchedCycleSpeed || 7);
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
   useEffect(() => {
     const db = getFirestore(app);
-    setLoading(true);
-
-    const moviesCollection = collection(db, 'movies');
-    const settingsDocRef = doc(db, 'settings', 'user-settings');
-
-    const unsubscribeMovies = onSnapshot(moviesCollection, (snapshot) => {
-      const fetchedMovies = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Movie));
-      setMovies(fetchedMovies);
-      setLoading(false);
-    }, (error) => {
-      console.error("Error fetching movies:", error);
-      setLoading(false);
+    
+    const unsubscribe = onSnapshot(collection(db, 'movies'), (snapshot) => {
+        const fetchedMovies = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Movie));
+        setMovies(fetchedMovies);
     });
 
-    const getSettings = async () => {
-        try {
-            const settingsDoc = await getDoc(settingsDocRef);
-            if (settingsDoc.exists()) {
-                const settingsData = settingsDoc.data();
-                if (settingsData && settingsData.cycleSpeed !== undefined) {
-                    setCycleSpeed(settingsData.cycleSpeed);
-                }
-            }
-        } catch (error) {
-            console.error("Error fetching settings:", error);
-        }
-    };
-    
-    getSettings();
-
-    const unsubscribeSettings = onSnapshot(settingsDocRef, (doc) => {
+    const unsubscribeSettings = onSnapshot(doc(db, 'settings', 'user-settings'), (doc) => {
         if (doc.exists()) {
             const settingsData = doc.data();
             if (settingsData && settingsData.cycleSpeed !== undefined) {
@@ -58,10 +51,10 @@ export default function Home() {
     });
 
     return () => {
-      unsubscribeMovies();
-      unsubscribeSettings();
+        unsubscribe();
+        unsubscribeSettings();
     };
-  }, []);
+}, []);
 
 
   const goToPrevious = useCallback(() => {

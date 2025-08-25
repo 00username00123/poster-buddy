@@ -1,7 +1,8 @@
+
 'use server';
 
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore, collection, getDocs, doc, setDoc, addDoc, deleteDoc, writeBatch } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, doc, setDoc, addDoc, deleteDoc, writeBatch, getDoc } from 'firebase/firestore';
 import { Movie, UploadedMovie } from '@/lib/data';
 
 const firebaseConfig = {
