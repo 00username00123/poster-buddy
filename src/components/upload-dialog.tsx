@@ -142,8 +142,9 @@ export function UploadDialog() {
             uploadedMovies.push(newMovie);
         }
     }
-    for (const movie of uploadedMovies) {
-      await addMovie(movie);
+    
+    if (uploadedMovies.length > 0) {
+      await Promise.all(uploadedMovies.map(movie => addMovie(movie)));
     }
     
     setOpen(false);
