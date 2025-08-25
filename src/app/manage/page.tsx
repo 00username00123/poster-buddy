@@ -1,3 +1,4 @@
+
 'use client';
 import { useCallback, useState } from "react";
 import Link from "next/link";
@@ -22,8 +23,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Movie } from "@/lib/data";
 import { Film, Trash2, Home, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { db } from "@/lib/firebase";
-import { doc, setDoc } from "firebase/firestore";
 
 interface MovieCardProps {
   movie: Movie;
@@ -88,7 +87,7 @@ const MovieCard: React.FC<MovieCardProps> = ({
 
 
 export default function ManagePage() {
-  const { movies, updateMovie, deleteMovie, cycleSpeed, setCycleSpeed, loading } = useMovies();
+  const { movies, updateMovie, deleteMovie, cycleSpeed, setCycleSpeed, loading, saveLayout } = useMovies();
   const [editingMovie, setEditingMovie] = useState<Movie | null>(null);  
   const { toast } = useToast();
   const [selectedMovies, setSelectedMovies] = useState<string[]>([]);
@@ -165,18 +164,10 @@ export default function ManagePage() {
   
   const handleSaveLayout = async () => {
     try {
-      await Promise.all(movies.map(movie => {
-        const { id, ...movieData } = movie;
-        return setDoc(doc(db, "movies", id), movieData);
-      }));
-      
-      await setDoc(doc(db, "settings", "user-settings"), {
-        cycleSpeed: cycleSpeed,
-      });
-
-      toast({ title: "Layout Saved", description: "Movie data and settings have been saved to Firestore." });
+      await saveLayout();
+      toast({ title: "Layout Saved", description: "Your changes have been saved successfully." });
     } catch (error) {
-      console.error("Error saving layout to Firestore:", error);
+      console.error("Error saving layout:", error);
       toast({ title: "Save Failed", description: "An error occurred while saving the layout.", variant: "destructive" });
     }
   };
@@ -281,7 +272,7 @@ Rating: ${movie.rating}`;
       </header>
     <div className="container mx-auto px-4 py-8">
        {loading ? (
-        <div className="text-center"><p>Loading...</p></div>
+        <div className="text-center"><p>Loading movies...</p></div>
       ) : (
       <>
         <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">

@@ -1,9 +1,10 @@
+
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Movie, UploadedMovie } from '@/lib/data';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, doc, getDoc, setDoc, writeBatch } from 'firebase/firestore';
 
 interface MovieContextType {
   movies: Movie[];
@@ -14,6 +15,7 @@ interface MovieContextType {
   deleteMovie: (id: string) => void;
   setMovies: (movies: Movie[]) => void;
   loading: boolean;
+  saveLayout: () => Promise<void>;
 }
 
 const MovieContext = createContext<MovieContextType | undefined>(undefined);
@@ -43,14 +45,12 @@ export const MovieProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         }
       } catch (error) {
         console.error("Error fetching data from Firestore in MovieContext:", error);
-        // Optionally show a toast or error message here
       } finally {
         setLoading(false);
       }
     };
     fetchData();
   }, []);
-
 
   const addMovie = (movie: UploadedMovie): Movie => {
     const newMovie = { ...movie, id: crypto.randomUUID() };
@@ -69,9 +69,26 @@ export const MovieProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const deleteMovie = (id: string) => {
     setMovies(prevMovies => prevMovies.filter(movie => movie.id !== id));
   };
+  
+  const saveLayout = async () => {
+    const batch = writeBatch(db);
+
+    // Save all movies
+    movies.forEach(movie => {
+      const { id, ...movieData } = movie;
+      const movieRef = doc(db, "movies", id);
+      batch.set(movieRef, movieData);
+    });
+
+    // Save settings
+    const settingsRef = doc(db, "settings", "user-settings");
+    batch.set(settingsRef, { cycleSpeed: cycleSpeed });
+    
+    await batch.commit();
+  };
 
   return (
-    <MovieContext.Provider value={{ movies, cycleSpeed, setCycleSpeed, addMovie, updateMovie, deleteMovie, setMovies, loading }}>
+    <MovieContext.Provider value={{ movies, cycleSpeed, setCycleSpeed, addMovie, updateMovie, deleteMovie, setMovies, loading, saveLayout }}>
       {children}
     </MovieContext.Provider>
   );
