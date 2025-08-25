@@ -43,18 +43,19 @@ export async function getMoviesAndSettings() {
 }
 
 export async function saveMoviesAndSettings(movies: Movie[], cycleSpeed: number) {
-    const batch = db.batch();
-
-    const settingsRef = db.collection('settings').doc('user-settings');
-    batch.set(settingsRef, { cycleSpeed: cycleSpeed });
-
-    movies.forEach(movie => {
-        const movieRef = db.collection('movies').doc(movie.id);
-        batch.set(movieRef, movie);
-    });
-
     try {
-        await batch.commit();
+        const settingsRef = db.collection('settings').doc('user-settings');
+        
+        const promises: Promise<any>[] = [
+             settingsRef.set({ cycleSpeed: cycleSpeed })
+        ];
+
+        movies.forEach(movie => {
+            const movieRef = db.collection('movies').doc(movie.id);
+            promises.push(movieRef.set(movie));
+        });
+
+        await Promise.all(promises);
         return { success: true };
     } catch (error) {
         console.error("Error saving layout:", error);
@@ -84,13 +85,12 @@ export async function deleteMovie(movieId: string) {
 }
 
 export async function deleteSelectedMovies(movieIds: string[]) {
-    const batch = db.batch();
-    movieIds.forEach(movieId => {
-        const docRef = db.collection("movies").doc(movieId);
-        batch.delete(docRef);
-    });
     try {
-        await batch.commit();
+        const deletePromises = movieIds.map(movieId => {
+            const docRef = db.collection("movies").doc(movieId);
+            return docRef.delete();
+        });
+        await Promise.all(deletePromises);
         return { success: true };
     } catch (error) {
         console.error("Error deleting selected movies:", error);
