@@ -22,9 +22,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Movie } from "@/lib/data";
 import { Film, Trash2, Home, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { db } from "@/lib/firebase";
-import { collection, doc, getDocs, writeBatch, deleteDoc, setDoc } from 'firebase/firestore';
 import { UploadDialog } from "@/components/upload-dialog";
+import { getMoviesAndSettings, saveMoviesAndSettings, deleteMovie, deleteSelectedMovies } from "@/app/actions";
 
 interface MovieCardProps {
   movie: Movie;
@@ -98,29 +97,14 @@ export default function ManagePage() {
   
   const fetchData = useCallback(async () => {
     setLoading(true);
-    try {
-      const moviesCollection = collection(db, 'movies');
-      const settingsDocRef = doc(db, 'settings', 'user-settings');
-      
-      const [moviesSnapshot, settingsDoc] = await Promise.all([
-        getDocs(moviesCollection),
-        getDocs(collection(db, 'settings'))
-      ]);
-
-      const fetchedMovies = moviesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Movie));
+    const { movies: fetchedMovies, cycleSpeed: fetchedCycleSpeed, error } = await getMoviesAndSettings();
+    if (error) {
+      toast({ title: "Load Failed", description: error, variant: "destructive" });
+    } else {
       setMovies(fetchedMovies);
-
-      const settingsData = settingsDoc.docs.find(d => d.id === 'user-settings')?.data();
-      if (settingsData && settingsData.cycleSpeed !== undefined) {
-        setCycleSpeed(settingsData.cycleSpeed);
-      }
-      
-    } catch (error) {
-      console.error("Error fetching data from Firestore:", error);
-      toast({ title: "Load Failed", description: "An error occurred while loading data.", variant: "destructive" });
-    } finally {
-      setLoading(false);
+      setCycleSpeed(fetchedCycleSpeed);
     }
+    setLoading(false);
   }, [toast]);
 
   useEffect(() => {
@@ -136,18 +120,17 @@ export default function ManagePage() {
     setEditingMovie(null);
   };
 
-  const handleDelete = async (movieToDelete: Movie) => {
-    try {
-        await deleteDoc(doc(db, "movies", movieToDelete.id));
-        setMovies(prev => prev.filter(m => m.id !== movieToDelete.id));
-        toast({
-            title: "Movie Deleted",
-            description: `${movieToDelete.name} has been removed.`,
-            variant: "destructive",
-        });
-    } catch (error) {
-        console.error("Error deleting movie:", error);
-        toast({ title: "Delete Failed", description: "An error occurred while deleting the movie.", variant: "destructive" });
+  const handleDeleteAction = async (movieToDelete: Movie) => {
+    const result = await deleteMovie(movieToDelete.id);
+    if (result.success) {
+      setMovies(prev => prev.filter(m => m.id !== movieToDelete.id));
+      toast({
+          title: "Movie Deleted",
+          description: `${movieToDelete.name} has been removed.`,
+          variant: "destructive",
+      });
+    } else {
+      toast({ title: "Delete Failed", description: result.error, variant: "destructive" });
     }
   };
 
@@ -185,51 +168,36 @@ export default function ManagePage() {
     }
   };
 
-  const handleDeleteSelected = async () => {
-    const batch = writeBatch(db);
-    selectedMovies.forEach(movieId => {
-        batch.delete(doc(db, "movies", movieId));
-    });
-    try {
-        await batch.commit();
-        setMovies(prev => prev.filter(m => !selectedMovies.includes(m.id)));
-        toast({
-            title: `${selectedMovies.length} Movies Deleted`,
-            description: `The selected movies have been removed.`,
-        });
-        setSelectedMovies([]);
-    } catch (error) {
-        console.error("Error deleting selected movies:", error);
-        toast({ title: "Delete Failed", description: "An error occurred while deleting the selected movies.", variant: "destructive" });
+  const handleDeleteSelectedAction = async () => {
+    const result = await deleteSelectedMovies(selectedMovies);
+    if(result.success) {
+      setMovies(prev => prev.filter(m => !selectedMovies.includes(m.id)));
+      toast({
+          title: `${selectedMovies.length} Movies Deleted`,
+          description: `The selected movies have been removed.`,
+      });
+      setSelectedMovies([]);
+    } else {
+      toast({ title: "Delete Failed", description: result.error, variant: "destructive" });
     }
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!editingMovie) return;
-    try {
-        await setDoc(doc(db, "movies", editingMovie.id), editingMovie);
-        setMovies(prev => prev.map(m => m.id === editingMovie.id ? editingMovie : m));
-        setEditingMovie(null);
-        toast({
-            title: "Movie Saved",
-            description: `${editingMovie.name} has been updated.`,
-        });
-    } catch (error) {
-        console.error("Error saving movie:", error);
-        toast({ title: "Save Failed", description: "An error occurred while saving the movie.", variant: "destructive" });
-    }
+    setMovies(prev => prev.map(m => m.id === editingMovie.id ? editingMovie : m));
+    setEditingMovie(null);
+    toast({
+        title: "Movie Updated",
+        description: `${editingMovie.name} has been updated locally. Save the layout to persist changes.`,
+    });
   };
 
   const handleSaveLayout = async () => {
-    try {
-      const batch = writeBatch(db);
-      const settingsRef = doc(db, "settings", "user-settings");
-      batch.set(settingsRef, { cycleSpeed: cycleSpeed });
-      await batch.commit();
+    const result = await saveMoviesAndSettings(movies, cycleSpeed);
+    if(result.success) {
       toast({ title: "Layout Saved", description: "Your changes have been saved successfully." });
-    } catch (error) {
-      console.error("Error saving layout:", error);
-      toast({ title: "Save Failed", description: "An error occurred while saving the layout.", variant: "destructive" });
+    } else {
+      toast({ title: "Save Failed", description: result.error, variant: "destructive" });
     }
   };
 
@@ -355,9 +323,23 @@ Rating: ${movie.rating}`;
               {selectedMovies.length === movies.length ? 'Deselect All' : 'Select All'}
             </Button>}
             {selectedMovies.length > 0 && (
-              <Button onClick={handleDeleteSelected} variant="destructive">
-                Delete ({selectedMovies.length})
-              </Button>
+               <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive">Delete ({selectedMovies.length})</Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will permanently delete {selectedMovies.length} movie(s). This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteSelectedAction}>Delete</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             )}
           </div>
           <Button onClick={handleSaveLayout}>Save Layout</Button>
@@ -371,7 +353,7 @@ Rating: ${movie.rating}`;
               handleMovieSelect={handleMovieSelect}
               handleEdit={handleEdit}
               generateInfoFile={generateInfoFile}
-              handleDelete={handleDelete}
+              handleDelete={handleDeleteAction}
             />
           ))}
         </div>
