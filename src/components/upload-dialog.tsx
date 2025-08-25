@@ -30,67 +30,27 @@ export function UploadDialog({ onUploadComplete }: UploadDialogProps) {
   const [files, setFiles] = useState<FileList | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
- 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => { 
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setFiles(event.target.files);
   };
 
   const handleOpenChange = (isOpen: boolean) => {
-    if (isUploading && !isOpen) {
-      return; 
-    }
     setOpen(isOpen);
     if (!isOpen) {
+      // Reset state when dialog is closed
       setIsUploading(false);
       setFiles(null);
     }
   };
 
-
   const fileToDataUrl = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          resolve(event.target.result as string);
-        } else {
-          reject(new Error("Failed to read file."));
-        }
-      };
-      reader.onerror = reject;
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (error) => reject(error);
       reader.readAsDataURL(file);
     });
-  }
-
-  const resizePoster = (file: File): Promise<string> => {
-      return new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = (event) => {
-              if (!event.target?.result) {
-                return reject(new Error("Failed to read file for resizing."));
-              }
-              const img = new Image();
-              img.onload = () => {
-                  const canvas = document.createElement('canvas');
-                  const MAX_WIDTH = 600;
-                  const scaleSize = MAX_WIDTH / img.width;
-                  canvas.width = MAX_WIDTH;
-                  canvas.height = img.height * scaleSize;
-
-                  const ctx = canvas.getContext('2d');
-                  if (!ctx) {
-                      return reject(new Error('Failed to get canvas context'));
-                  }
-                  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                  
-                  resolve(canvas.toDataURL('image/jpeg')); 
-              };
-              img.onerror = (err) => reject(new Error(`Image load error for resizing: ${err.toString()}`));
-              img.src = event.target.result as string;
-          };
-          reader.onerror = (err) => reject(new Error(`File read error for resizing: ${err.toString()}`));
-          reader.readAsDataURL(file);
-      });
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -99,87 +59,89 @@ export function UploadDialog({ onUploadComplete }: UploadDialogProps) {
       toast({ title: "No Files Selected", description: "Please select files to upload.", variant: "destructive" });
       return;
     }
+    
     setIsUploading(true);
 
     try {
-        const fileGroups: Record<string, { poster?: File, logo?: File, info?: File }> = {};
+      const fileGroups: Record<string, { poster?: File, logo?: File, info?: File }> = {};
 
-        for (const file of Array.from(files)) {
-            const parts = file.name.match(/(.+?)[_.]((poster|logo|info))\.\w+$/i);
-            if (!parts) continue;
-            
-            const name = parts[1];
-            const type = parts[2].toLowerCase() as 'poster' | 'logo' | 'info';
+      for (const file of Array.from(files)) {
+        const parts = file.name.match(/(.+?)[_.]((poster|logo|info))\.\w+$/i);
+        if (!parts) continue;
+        
+        const name = parts[1];
+        const type = parts[2].toLowerCase() as 'poster' | 'logo' | 'info';
 
-            if (!fileGroups[name]) {
-                fileGroups[name] = {};
+        if (!fileGroups[name]) {
+            fileGroups[name] = {};
+        }
+        fileGroups[name][type] = file;
+      }
+
+      const validGroups = Object.entries(fileGroups).filter(([, group]) => group.poster && group.info);
+      
+      if (validGroups.length === 0) {
+          toast({ title: "No Valid Movie Sets Found", description: "Ensure files are named correctly (e.g., moviename_poster.jpg, moviename_info.txt).", variant: "destructive" });
+          setIsUploading(false);
+          return;
+      }
+      
+      const uploadPromises = validGroups.map(async ([movieName, group]) => {
+        try {
+          const infoText = await group.info!.text();
+          const info: Record<string, string> = {};
+          infoText.split('\n').forEach(line => {
+            const [key, ...valueParts] = line.split(':');
+            if (key && valueParts.length > 0) {
+              const formattedKey = key.trim().toLowerCase().replace(/\s+/g, '');
+              info[formattedKey] = valueParts.join(':').trim();
             }
-            fileGroups[name][type] = file;
+          });
+
+          const posterUrl = await fileToDataUrl(group.poster!);
+          const logoUrl = group.logo ? await fileToDataUrl(group.logo) : 'https://placehold.co/400x150.png';
+
+          const newMovie: UploadedMovie = {
+              name: info.name || movieName.replace(/_/g, ' '),
+              posterUrl,
+              logoUrl,
+              description: info.description || '',
+              starring: info.starring || '',
+              director: info.director || '',
+              runtime: info.runtime || '',
+              genre: info.genre || '',
+              rating: info.rating || '',
+              posterAiHint: `movie poster for ${info.name || movieName}`,
+          };
+          
+          await addDoc(collection(db, "movies"), newMovie);
+          return { status: 'fulfilled', movieName };
+        } catch(err: any) {
+            console.error(`Failed to process movie "${movieName}":`, err);
+            return { status: 'rejected', movieName, reason: err.message };
         }
+      });
 
-        const validGroups = Object.entries(fileGroups).filter(([, group]) => group.poster && group.info);
-        
-        if (validGroups.length === 0) {
-            toast({ title: "No Valid Movie Sets Found", description: "Ensure files are named correctly (e.g., moviename_poster.jpg, moviename_info.txt).", variant: "destructive" });
-            setIsUploading(false);
-            return;
-        }
-        
-        const uploadPromises = validGroups.map(async ([movieName, group]) => {
-          try {
-            const infoText = await group.info!.text();
-            const info: Record<string, string> = {};
-            const lines = infoText.split('\n');
-            let currentKey = '';
-            let descriptionValue = '';
+      const results = await Promise.allSettled(uploadPromises);
+      
+      const successfulUploads = results.filter(r => r.status === 'fulfilled').length;
+      const failedUploads = results.filter(r => r.status === 'rejected').length;
 
-            lines.forEach(line => {
-                const match = line.match(/^([^:]+):\s*(.*)$/);
-                if (match) {
-                    currentKey = match[1].toLowerCase().trim().replace(/\s+/g, '');
-                    if (currentKey === 'description') {
-                        descriptionValue = match[2].trim();
-                    } else {
-                        info[currentKey] = match[2].trim();
-                    }
-                } else if (currentKey === 'description') {
-                    descriptionValue += `\n${line.trim()}`;
-                }
-            });
-            info.description = descriptionValue.trim();
+      if (successfulUploads > 0) {
+        toast({ title: "Upload Complete", description: `${successfulUploads} movie(s) have been successfully added.` });
+      }
 
-            const posterUrl = await resizePoster(group.poster!);
-            const logoUrl = group.logo ? await fileToDataUrl(group.logo) : 'https://placehold.co/400x150.png';
-
-            const newMovie: UploadedMovie = {
-                name: info.name || movieName.replace(/_/g, ' '),
-                posterUrl,
-                logoUrl,
-                description: info.description || '',
-                starring: info.starring || '',
-                director: info.director || '',
-                runtime: info.runtime || '',
-                genre: info.genre || '',
-                rating: info.rating || '',
-                posterAiHint: `movie poster for ${info.name || movieName}`,
-            };
-            
-            await addDoc(collection(db, "movies"), newMovie);
-          } catch(err: any) {
-              throw new Error(`Failed to process movie "${movieName}": ${err.message}`);
-          }
-        });
-
-        await Promise.all(uploadPromises);
-
-        toast({ title: "Upload Complete", description: `${validGroups.length} movie(s) have been successfully added.` });
-        onUploadComplete();
-        setOpen(false);
+      if (failedUploads > 0) {
+        toast({ title: "Upload Failed", description: `${failedUploads} movie(s) could not be uploaded. Check console for details.`, variant: "destructive" });
+      }
+      
+      onUploadComplete();
+      handleOpenChange(false); // Close and reset dialog
 
     } catch (error: any) {
-       console.error("Error uploading movies:", error);
+       console.error("An unexpected error occurred during upload:", error);
        toast({ title: "Upload Failed", description: error.message || "An unexpected error occurred.", variant: "destructive" });
-       setIsUploading(false);
+       setIsUploading(false); // Ensure button is reset on unexpected error
     }
   };
 
