@@ -4,27 +4,25 @@
 import { Movie, UploadedMovie } from '@/lib/data';
 import admin from 'firebase-admin';
 
-// Initialize Firebase Admin SDK
-try {
+// Helper function to initialize Firebase Admin and get a Firestore instance
+function getDb() {
     if (!admin.apps.length) {
-        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY!);
-        admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount),
-            projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-        });
+        try {
+            admin.initializeApp({
+                credential: admin.credential.applicationDefault(),
+            });
+        } catch (error: any) {
+            if (!/already exists/u.test(error.message)) {
+                console.error('Firebase admin initialization error', error);
+            }
+        }
     }
-} catch (error: any) {
-    // We ignore this during build step
-    if (!error.message.includes('json')) {
-        console.error('Firebase admin initialization error', error);
-    }
+    return admin.firestore();
 }
-
-
-const db = admin.firestore();
 
 export async function getMoviesAndSettings() {
     try {
+        const db = getDb();
         const moviesSnapshot = await db.collection('movies').get();
         const movies = moviesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Movie));
 
@@ -40,6 +38,7 @@ export async function getMoviesAndSettings() {
 
 export async function saveSettings(cycleSpeed: number) {
     try {
+        const db = getDb();
         await db.collection('settings').doc('user-settings').set({ cycleSpeed }, { merge: true });
         return { success: true };
     } catch (error: any) {
@@ -50,6 +49,7 @@ export async function saveSettings(cycleSpeed: number) {
 
 export async function addMovie(movie: UploadedMovie) {
     try {
+        const db = getDb();
         await db.collection('movies').add(movie);
         return { success: true };
     } catch (error: any) {
@@ -61,6 +61,7 @@ export async function addMovie(movie: UploadedMovie) {
 
 export async function updateMovie(movie: Movie) {
     try {
+        const db = getDb();
         const { id, ...movieData } = movie;
         await db.collection('movies').doc(id).update(movieData);
         return { success: true };
@@ -72,6 +73,7 @@ export async function updateMovie(movie: Movie) {
 
 export async function deleteMovie(movieId: string) {
     try {
+        const db = getDb();
         await db.collection('movies').doc(movieId).delete();
         return { success: true };
     } catch (error: any) {
@@ -82,6 +84,7 @@ export async function deleteMovie(movieId: string) {
 
 export async function deleteSelectedMovies(movieIds: string[]) {
      try {
+        const db = getDb();
         const batch = db.batch();
         movieIds.forEach(id => {
             const docRef = db.collection('movies').doc(id);
