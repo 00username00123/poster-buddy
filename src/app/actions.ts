@@ -13,9 +13,17 @@ async function getAuthToken() {
     if (authToken) {
         return authToken;
     }
+    // Explicitly use the service account key from the environment variable.
+    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY!);
+
     const auth = new GoogleAuth({
+        credentials: {
+            client_email: serviceAccount.client_email,
+            private_key: serviceAccount.private_key,
+        },
         scopes: 'https://www.googleapis.com/auth/datastore'
     });
+
     const client = await auth.getClient();
     const token = await client.getAccessToken();
     authToken = token.token;
