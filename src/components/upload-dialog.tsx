@@ -37,12 +37,10 @@ export function UploadDialog({ onUploadComplete }: UploadDialogProps) {
 
   const handleOpenChange = (isOpen: boolean) => {
     if (isUploading && !isOpen) {
-      return; // Prevent closing while an upload is in progress
+      return; 
     }
     setOpen(isOpen);
     if (!isOpen) {
-      // Always reset state when the dialog closes.
-      // This is the single source of truth for resetting.
       setIsUploading(false);
       setFiles(null);
     }
@@ -87,10 +85,10 @@ export function UploadDialog({ onUploadComplete }: UploadDialogProps) {
                   
                   resolve(canvas.toDataURL('image/jpeg')); 
               };
-              img.onerror = (err) => reject(new Error(`Image load error for resizing: ${err}`));
+              img.onerror = (err) => reject(new Error(`Image load error for resizing: ${err.toString()}`));
               img.src = event.target.result as string;
           };
-          reader.onerror = (err) => reject(new Error(`File read error for resizing: ${err}`));
+          reader.onerror = (err) => reject(new Error(`File read error for resizing: ${err.toString()}`));
           reader.readAsDataURL(file);
       });
   };
@@ -123,11 +121,12 @@ export function UploadDialog({ onUploadComplete }: UploadDialogProps) {
         
         if (validGroups.length === 0) {
             toast({ title: "No Valid Movie Sets Found", description: "Ensure files are named correctly (e.g., moviename_poster.jpg, moviename_info.txt).", variant: "destructive" });
-            setIsUploading(false); // Manually reset on validation failure
+            setIsUploading(false);
             return;
         }
         
         const uploadPromises = validGroups.map(async ([movieName, group]) => {
+          try {
             const infoText = await group.info!.text();
             const info: Record<string, string> = {};
             const lines = infoText.split('\n');
@@ -166,18 +165,21 @@ export function UploadDialog({ onUploadComplete }: UploadDialogProps) {
             };
             
             await addDoc(collection(db, "movies"), newMovie);
+          } catch(err: any) {
+              throw new Error(`Failed to process movie "${movieName}": ${err.message}`);
+          }
         });
 
         await Promise.all(uploadPromises);
 
         toast({ title: "Upload Complete", description: `${validGroups.length} movie(s) have been successfully added.` });
         onUploadComplete();
-        setOpen(false); // This will trigger onOpenChange which resets the state.
+        setOpen(false);
 
     } catch (error: any) {
        console.error("Error uploading movies:", error);
        toast({ title: "Upload Failed", description: error.message || "An unexpected error occurred.", variant: "destructive" });
-       setIsUploading(false); // Manually reset on error
+       setIsUploading(false);
     }
   };
 
