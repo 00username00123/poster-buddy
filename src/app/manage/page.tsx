@@ -87,10 +87,19 @@ const MovieCard: React.FC<MovieCardProps> = ({
 
 
 export default function ManagePage() {
-  const { movies, updateMovie, deleteMovie, addMovie, cycleSpeed, setCycleSpeed, loading, saveLayout } = useMovies();
+  const { movies: contextMovies, updateMovie, deleteMovie, cycleSpeed: contextCycleSpeed, loading, saveLayout } = useMovies();
+  const [localMovies, setLocalMovies] = useState<Movie[]>([]);
+  const [localCycleSpeed, setLocalCycleSpeed] = useState<number>(7);
   const [editingMovie, setEditingMovie] = useState<Movie | null>(null);
   const { toast } = useToast();
   const [selectedMovies, setSelectedMovies] = useState<string[]>([]);
+  
+  useEffect(() => {
+    if (!loading) {
+      setLocalMovies(contextMovies);
+      setLocalCycleSpeed(contextCycleSpeed);
+    }
+  }, [contextMovies, contextCycleSpeed, loading]);
 
   const handleEdit = (movie: Movie) => {
     setEditingMovie(JSON.parse(JSON.stringify(movie)));
@@ -135,10 +144,10 @@ export default function ManagePage() {
   }, []);
 
   const handleSelectAll = () => {
-    if (selectedMovies.length === movies.length) {
+    if (selectedMovies.length === localMovies.length) {
       setSelectedMovies([]);
     } else {
-      setSelectedMovies(movies.map(movie => movie.id));
+      setSelectedMovies(localMovies.map(movie => movie.id));
     }
   };
 
@@ -154,6 +163,7 @@ export default function ManagePage() {
   const handleSave = async () => {
     if (!editingMovie) return;
     await updateMovie(editingMovie.id, editingMovie);
+    setLocalMovies(prev => prev.map(m => m.id === editingMovie.id ? editingMovie : m));
     setEditingMovie(null);
     toast({
       title: "Movie Saved",
@@ -163,7 +173,7 @@ export default function ManagePage() {
 
   const handleSaveLayout = async () => {
     try {
-      await saveLayout();
+      await saveLayout(localMovies, localCycleSpeed);
       toast({ title: "Layout Saved", description: "Your changes have been saved successfully." });
     } catch (error) {
       console.error("Error saving layout:", error);
@@ -282,14 +292,14 @@ Rating: ${movie.rating}`;
               <Input
                 id="cycleSpeed"
                 type="number"
-                value={cycleSpeed}
-                onChange={(e) => setCycleSpeed(Number(e.target.value))}
+                value={localCycleSpeed}
+                onChange={(e) => setLocalCycleSpeed(Number(e.target.value))}
                 className="w-20"
                 min="1"
               />
             </div>
-            {movies.length > 0 && <Button onClick={handleSelectAll} variant="outline">
-              {selectedMovies.length === movies.length ? 'Deselect All' : 'Select All'}
+            {localMovies.length > 0 && <Button onClick={handleSelectAll} variant="outline">
+              {selectedMovies.length === localMovies.length ? 'Deselect All' : 'Select All'}
             </Button>}
             {selectedMovies.length > 0 && (
               <Button onClick={handleDeleteSelected} variant="destructive">
@@ -300,7 +310,7 @@ Rating: ${movie.rating}`;
           <Button onClick={handleSaveLayout}>Save Layout</Button>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {movies.map((movie) => (
+          {localMovies.map((movie) => (
             <MovieCard
               key={movie.id}
               movie={movie}

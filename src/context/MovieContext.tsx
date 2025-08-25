@@ -1,10 +1,10 @@
 
 "use client";
 
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import { Movie, UploadedMovie } from '@/lib/data';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, doc, deleteDoc, setDoc, updateDoc, getDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, deleteDoc, setDoc, updateDoc, writeBatch, getDoc } from 'firebase/firestore';
 
 interface MovieContextType {
   movies: Movie[];
@@ -14,7 +14,7 @@ interface MovieContextType {
   addMovie: (movie: UploadedMovie) => Promise<void>;
   updateMovie: (id: string, updatedMovie: Partial<Movie>) => Promise<void>;
   deleteMovie: (id: string) => Promise<void>;
-  saveLayout: () => Promise<void>;
+  saveLayout: (moviesToSave: Movie[], newCycleSpeed: number) => Promise<void>;
 }
 
 const MovieContext = createContext<MovieContextType | undefined>(undefined);
@@ -26,7 +26,6 @@ export const MovieProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   useEffect(() => {
     setLoading(true);
-
     const moviesCollection = collection(db, 'movies');
     const unsubscribeMovies = onSnapshot(moviesCollection, (snapshot) => {
       const fetchedMovies = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Movie));
@@ -55,40 +54,56 @@ export const MovieProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     };
   }, []);
 
-  const addMovie = async (movie: UploadedMovie) => {
+  const addMovie = useCallback(async (movie: UploadedMovie) => {
     const newId = crypto.randomUUID();
     const movieRef = doc(db, "movies", newId);
     await setDoc(movieRef, movie);
-  };
+  }, []);
 
-  const updateMovie = async (id: string, updatedMovie: Partial<Movie>) => {
+  const updateMovie = useCallback(async (id: string, updatedMovie: Partial<Movie>) => {
+    // Optimistic update
+    setMovies(prevMovies => prevMovies.map(m => m.id === id ? { ...m, ...updatedMovie } : m));
     const movieRef = doc(db, "movies", id);
-    await updateDoc(movieRef, updatedMovie);
-  };
+    try {
+      await updateDoc(movieRef, updatedMovie);
+    } catch (error) {
+      console.error("Failed to update movie, rolling back:", error);
+      // NOTE: A more robust rollback would re-fetch the original state
+    }
+  }, []);
 
-  const deleteMovie = async (id: string) => {
+  const deleteMovie = useCallback(async (id: string) => {
+    // Optimistic update
+    setMovies(prevMovies => prevMovies.filter(m => m.id !== id));
     const movieRef = doc(db, "movies", id);
     await deleteDoc(movieRef);
-  };
+  }, []);
 
-  const saveLayout = async () => {
+  const saveLayout = useCallback(async (moviesToSave: Movie[], newCycleSpeed: number) => {
+    // Optimistic UI updates
+    setMovies(moviesToSave);
+    setCycleSpeed(newCycleSpeed);
+
     try {
+      const batch = writeBatch(db);
+
       // Save cycle speed
       const settingsRef = doc(db, "settings", "user-settings");
-      await setDoc(settingsRef, { cycleSpeed: cycleSpeed }, { merge: true });
+      batch.set(settingsRef, { cycleSpeed: newCycleSpeed }, { merge: true });
 
-      // The onSnapshot listener already keeps the local `movies` state
-      // in sync with Firestore, so we only need to update the documents
-      // that have actually changed (e.g., through the edit form).
-      // The `updateMovie` function already handles this.
-      // So, just saving the cycle speed is enough here.
-      console.log("Layout saved successfully (Cycle Speed).");
-
+      // Save all movies
+      moviesToSave.forEach(movie => {
+        const movieRef = doc(db, "movies", movie.id);
+        batch.set(movieRef, movie);
+      });
+      
+      await batch.commit();
     } catch (error) {
-      console.error("Error saving layout:", error);
+      console.error("Error saving layout to Firestore:", error);
+      // NOTE: Here you could implement a rollback logic or notify the user
       throw error;
     }
-  };
+  }, []);
 
 
   return (
