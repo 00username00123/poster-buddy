@@ -1,16 +1,28 @@
 
 'use server';
 
-import { initializeApp, getApps, getApp, cert } from 'firebase-admin/app';
-import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { initializeApp, getApps, cert } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 import { Movie, UploadedMovie } from '@/lib/data';
 
 const apps = getApps();
 if (!apps.length) {
     try {
-        initializeApp({
-            projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-        });
+        // This is a secure way to initialize on the server.
+        // The service account key is a JSON string stored in an environment variable.
+        // It's not exposed to the client.
+        if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+             initializeApp({
+                credential: cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)),
+                projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+            });
+        } else {
+            // Fallback for local development or environments where the full key isn't set.
+            // This might have limited permissions.
+            initializeApp({
+                projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+            });
+        }
     } catch (e) {
         console.error('Firebase admin initialization error', e);
     }
@@ -48,9 +60,10 @@ export async function getMoviesAndSettings() {
 export async function saveSettings(cycleSpeed: number) {
     try {
         const settingsRef = db.doc('settings/user-settings');
-        await settingsRef.set({ cycleSpeed });
+        await settingsRef.set({ cycleSpeed }, { merge: true });
         return { success: true };
     } catch (error) {
+        console.error("Error saving settings:", error);
         return { success: false, error: 'Failed to save settings.' };
     }
 }
@@ -82,6 +95,7 @@ export async function deleteMovie(movieId: string) {
         await db.doc(`movies/${movieId}`).delete();
         return { success: true };
     } catch (error) {
+        console.error("Error deleting movie:", error);
         return { success: false, error: 'Failed to delete movie.' };
     }
 }
@@ -96,6 +110,7 @@ export async function deleteSelectedMovies(movieIds: string[]) {
         await batch.commit();
         return { success: true };
     } catch (error) {
+        console.error("Error deleting movies:", error);
         return { success: false, error: 'Failed to delete selected movies.' };
     }
 }
