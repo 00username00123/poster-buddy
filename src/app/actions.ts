@@ -42,24 +42,14 @@ export async function getMoviesAndSettings() {
   }
 }
 
-export async function saveMoviesAndSettings(movies: Movie[], cycleSpeed: number) {
+export async function saveSettings(cycleSpeed: number) {
     try {
         const settingsRef = db.collection('settings').doc('user-settings');
-        
-        const promises: Promise<any>[] = [
-             settingsRef.set({ cycleSpeed: cycleSpeed })
-        ];
-
-        movies.forEach(movie => {
-            const movieRef = db.collection('movies').doc(movie.id);
-            promises.push(movieRef.set(movie));
-        });
-
-        await Promise.all(promises);
+        await settingsRef.set({ cycleSpeed: cycleSpeed });
         return { success: true };
     } catch (error) {
-        console.error("Error saving layout:", error);
-        return { success: false, error: 'Failed to save layout.' };
+        console.error("Error saving settings:", error);
+        return { success: false, error: 'Failed to save settings.' };
     }
 }
 
@@ -71,6 +61,17 @@ export async function addMovie(movie: UploadedMovie) {
     } catch (error) {
         console.error("Error adding movie:", error);
         return { success: false, error: 'Failed to add movie.' };
+    }
+}
+
+export async function updateMovie(movie: Movie) {
+    try {
+        const movieRef = db.collection('movies').doc(movie.id);
+        await movieRef.set(movie);
+        return { success: true };
+    } catch (error) {
+        console.error("Error updating movie:", error);
+        return { success: false, error: 'Failed to update movie.' };
     }
 }
 

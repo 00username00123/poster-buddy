@@ -23,7 +23,7 @@ import { Movie } from "@/lib/data";
 import { Film, Trash2, Home, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { UploadDialog } from "@/components/upload-dialog";
-import { getMoviesAndSettings, saveMoviesAndSettings, deleteMovie, deleteSelectedMovies } from "@/app/actions";
+import { getMoviesAndSettings, saveSettings, deleteMovie, deleteSelectedMovies, updateMovie } from "@/app/actions";
 
 interface MovieCardProps {
   movie: Movie;
@@ -182,20 +182,26 @@ export default function ManagePage() {
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!editingMovie) return;
-    setMovies(prev => prev.map(m => m.id === editingMovie.id ? editingMovie : m));
-    setEditingMovie(null);
-    toast({
-        title: "Movie Updated",
-        description: `${editingMovie.name} has been updated locally. Save the layout to persist changes.`,
-    });
+
+    const result = await updateMovie(editingMovie);
+    if (result.success) {
+      setMovies(prev => prev.map(m => m.id === editingMovie.id ? editingMovie : m));
+      toast({
+          title: "Movie Updated",
+          description: `${editingMovie.name} has been updated.`,
+      });
+      setEditingMovie(null);
+    } else {
+      toast({ title: "Update Failed", description: result.error, variant: "destructive" });
+    }
   };
 
   const handleSaveLayout = async () => {
-    const result = await saveMoviesAndSettings(movies, cycleSpeed);
+    const result = await saveSettings(cycleSpeed);
     if(result.success) {
-      toast({ title: "Layout Saved", description: "Your changes have been saved successfully." });
+      toast({ title: "Settings Saved", description: "Your changes have been saved successfully." });
     } else {
       toast({ title: "Save Failed", description: result.error, variant: "destructive" });
     }
@@ -215,7 +221,7 @@ Rating: ${movie.rating}`;
     a.href = url;
     a.download = `${movie.name.replace(/\s+/g, '_')}_info.txt`;
     document.body.appendChild(a);
-    a.click();
+a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
