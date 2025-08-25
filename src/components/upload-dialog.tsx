@@ -17,7 +17,8 @@ import { Label } from "@/components/ui/label";
 import { Upload } from "lucide-react";
 import type { UploadedMovie } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
-import { addMovie } from '@/app/actions';
+import { db } from '@/lib/firebase';
+import { collection, addDoc } from "firebase/firestore";
 
 
 interface UploadDialogProps {
@@ -138,10 +139,7 @@ export function UploadDialog({ onUploadComplete }: UploadDialogProps) {
                  posterAiHint: `movie poster for ${movieName}`,
              };
              
-             const result = await addMovie(newMovie);
-             if (!result.success) {
-                 throw new Error(result.error || `Failed to upload ${movieName}`);
-             }
+             await addDoc(collection(db, "movies"), newMovie);
              moviesAdded++;
           }
       });

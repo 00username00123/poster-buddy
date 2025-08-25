@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Film } from "lucide-react";
 import { PosterView } from "@/components/poster-view";
 import { Movie } from "@/lib/data";
-import { getMoviesAndSettings } from "@/app/actions";
-import { collection, onSnapshot, doc, getFirestore } from "firebase/firestore";
+import { db } from '@/lib/firebase';
+import { collection, getDocs } from "firebase/firestore";
 
 export default function Home() {
   const [movies, setMovies] = useState<Movie[]>([]);
@@ -18,12 +18,19 @@ export default function Home() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const { movies: fetchedMovies, cycleSpeed: fetchedCycleSpeed, error } = await getMoviesAndSettings();
-    if (error) {
+    try {
+      const moviesCollection = collection(db, 'movies');
+      const moviesSnapshot = await getDocs(moviesCollection);
+      const moviesData = moviesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Movie));
+      setMovies(moviesData);
+
+      const settingsSnapshot = await getDocs(collection(db, 'settings'));
+      if (!settingsSnapshot.empty) {
+        const settingsData = settingsSnapshot.docs[0].data();
+        setCycleSpeed(settingsData.cycleSpeed || 7);
+      }
+    } catch (error) {
       console.error("Error fetching data:", error);
-    } else {
-      setMovies(fetchedMovies || []);
-      setCycleSpeed(fetchedCycleSpeed || 7);
     }
     setLoading(false);
   }, []);

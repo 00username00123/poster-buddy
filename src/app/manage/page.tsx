@@ -23,7 +23,8 @@ import { Movie } from "@/lib/data";
 import { Film, Trash2, Home, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { UploadDialog } from "@/components/upload-dialog";
-import { getMoviesAndSettings, saveSettings, updateMovie, deleteMovie, deleteSelectedMovies } from "@/app/actions";
+import { db } from '@/lib/firebase';
+import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc, writeBatch } from "firebase/firestore";
 
 interface MovieCardProps {
   movie: Movie;
@@ -98,12 +99,17 @@ export default function ManagePage() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const { movies, cycleSpeed, error } = await getMoviesAndSettings();
-      if (error) {
-        throw new Error(error);
+      const moviesCollection = collection(db, 'movies');
+      const moviesSnapshot = await getDocs(moviesCollection);
+      const moviesData = moviesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Movie));
+      setMovies(moviesData);
+
+      const settingsDocRef = doc(db, 'settings', 'user-settings');
+      const settingsSnapshot = await getDocs(collection(db, 'settings'));
+      if (!settingsSnapshot.empty) {
+        const settingsData = settingsSnapshot.docs[0].data();
+        setCycleSpeed(settingsData.cycleSpeed || 7);
       }
-      setMovies(movies || []);
-      setCycleSpeed(cycleSpeed || 7);
     } catch (error) {
       console.error("Error fetching data:", error);
       toast({ title: "Load Failed", description: "Failed to load data from Firestore.", variant: "destructive" });
@@ -126,8 +132,7 @@ export default function ManagePage() {
 
   const handleDeleteAction = async (movieToDelete: Movie) => {
     try {
-      const result = await deleteMovie(movieToDelete.id);
-      if(!result.success) throw new Error(result.error);
+      await deleteDoc(doc(db, "movies", movieToDelete.id));
       setMovies(prev => prev.filter(m => m.id !== movieToDelete.id));
       toast({
           title: "Movie Deleted",
@@ -176,8 +181,13 @@ export default function ManagePage() {
 
   const handleDeleteSelectedAction = async () => {
     try {
-        const result = await deleteSelectedMovies(selectedMovies);
-        if(!result.success) throw new Error(result.error);
+        const batch = writeBatch(db);
+        selectedMovies.forEach(id => {
+            const docRef = doc(db, 'movies', id);
+            batch.delete(docRef);
+        });
+        await batch.commit();
+
         setMovies(prev => prev.filter(m => !selectedMovies.includes(m.id)));
         toast({
             title: `${selectedMovies.length} Movies Deleted`,
@@ -193,8 +203,8 @@ export default function ManagePage() {
   const handleSave = async () => {
     if (!editingMovie) return;
     try {
-        const result = await updateMovie(editingMovie);
-        if(!result.success) throw new Error(result.error);
+        const { id, ...movieData } = editingMovie;
+        await updateDoc(doc(db, "movies", id), movieData);
         setMovies(prev => prev.map(m => m.id === editingMovie.id ? editingMovie : m));
         toast({
             title: "Movie Updated",
@@ -209,8 +219,7 @@ export default function ManagePage() {
 
   const handleSaveLayout = async () => {
     try {
-      const result = await saveSettings(cycleSpeed);
-      if(!result.success) throw new Error(result.error);
+      await setDoc(doc(db, "settings", "user-settings"), { cycleSpeed });
       toast({ title: "Settings Saved", description: "Your changes have been saved successfully." });
     } catch(error) {
        console.error("Error saving settings:", error);
