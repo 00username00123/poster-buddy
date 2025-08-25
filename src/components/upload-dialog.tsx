@@ -52,64 +52,6 @@ export function UploadDialog({ onUploadComplete }: UploadDialogProps) {
 
         fileGroups[name][type] = file;
     }
-
-    const resizePoster = (file: File): Promise<string> => {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          if (!event.target?.result) {
-            return reject(new Error("Failed to read file."));
-          }
-          const img = new Image();
-          img.onload = () => {
-            const maxWidth = 1200;
-            const maxHeight = 1500;
-            let width = img.width;
-            let height = img.height;
-
-            if (width > height) {
-              if (width > maxWidth) {
-                height = height * (maxWidth / width);
-                width = maxWidth;
-              }
-            } else {
-              if (height > maxHeight) {
-                width = width * (maxHeight / height);
-                height = maxHeight;
-              }
-            }
-
-            if (width / height > 2/3) {
-              if (width > maxWidth) {
-                height = height * (maxWidth / width);
-                width = maxWidth;
-              }
-            } else {
-              if (height > maxHeight) {
-                width = width * (maxHeight / height);
-                height = maxHeight;
-              }
-            }
-
-
-            const canvas = document.createElement('canvas');
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-              ctx.drawImage(img, 0, 0, width, height);
-              resolve(canvas.toDataURL(file.type));
-            } else {
-              reject(new Error('Could not get canvas context'));
-            }
-          };
-          img.onerror = reject;
-          img.src = event.target?.result as string;
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-    };
     
     const fileToDataUrl = (file: File): Promise<string> => {
       return new Promise((resolve, reject) => {
@@ -151,7 +93,7 @@ export function UploadDialog({ onUploadComplete }: UploadDialogProps) {
              });
              info.description = descriptionParts.join('\n');
 
-             const posterUrl = await resizePoster(group.poster!);
+             const posterUrl = await fileToDataUrl(group.poster!);
              const logoUrl = group.logo ? await fileToDataUrl(group.logo) : 'https://placehold.co/400x150.png';
 
              const newMovie: UploadedMovie = {
