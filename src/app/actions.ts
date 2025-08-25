@@ -98,3 +98,4 @@ export async function deleteSelectedMovies(movieIds: string[]) {
         return { success: false, error: 'Failed to delete movies.' };
     }
 }
+
