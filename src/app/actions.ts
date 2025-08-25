@@ -1,41 +1,99 @@
 
 'use server';
 
-import { initializeApp, getApps } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
 import { Movie, UploadedMovie } from '@/lib/data';
+import { GoogleAuth } from 'google-auth-library';
 
-// Initialize Firebase Admin SDK
-if (!getApps().length) {
-  initializeApp({
-    // projectId is used for local development and will be automatically
-    // inferred in the App Hosting environment.
-    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  });
+const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+const API_BASE_URL = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
+
+let authToken: string | null | undefined;
+
+async function getAuthToken() {
+    if (authToken) {
+        return authToken;
+    }
+    const auth = new GoogleAuth({
+        scopes: 'https://www.googleapis.com/auth/datastore'
+    });
+    const client = await auth.getClient();
+    const token = await client.getAccessToken();
+    authToken = token.token;
+    return authToken;
 }
 
-const db = getFirestore();
+// Firestore REST API data format is verbose. These helpers simplify conversion.
+const formatValue = (value: any) => {
+    if (typeof value === 'string') return { stringValue: value };
+    if (typeof value === 'boolean') return { booleanValue: value };
+    if (typeof value === 'number') return { doubleValue: value }; // or integerValue
+    if (value === null) return { nullValue: null };
+    if (Array.isArray(value)) return { arrayValue: { values: value.map(formatValue) } };
+    if (typeof value === 'object') {
+        const mapValue: { [key: string]: any } = {};
+        for (const key in value) {
+            mapValue[key] = formatValue(value[key]);
+        }
+        return { mapValue: { fields: mapValue } };
+    }
+    return {};
+};
+
+const parseValue = (value: any): any => {
+    if (value.stringValue !== undefined) return value.stringValue;
+    if (value.booleanValue !== undefined) return value.booleanValue;
+    if (value.doubleValue !== undefined) return value.doubleValue;
+    if (value.integerValue !== undefined) return parseInt(value.integerValue, 10);
+    if (value.nullValue !== undefined) return null;
+    if (value.arrayValue?.values) return value.arrayValue.values.map(parseValue);
+    if (value.mapValue?.fields) {
+        const obj: { [key: string]: any } = {};
+        for (const key in value.mapValue.fields) {
+            obj[key] = parseValue(value.mapValue.fields[key]);
+        }
+        return obj;
+    }
+    return undefined;
+};
+
+const documentToMovie = (doc: any): Movie => {
+    const id = doc.name.split('/').pop();
+    const fields = doc.fields;
+    const movieData: { [key: string]: any } = {};
+    for (const key in fields) {
+        movieData[key] = parseValue(fields[key]);
+    }
+    return { id, ...movieData } as Movie;
+}
 
 export async function getMoviesAndSettings() {
     try {
-        const moviesCollection = db.collection('movies');
-        const settingsDocRef = db.doc('settings/user-settings');
+        const token = await getAuthToken();
+        const headers = { 'Authorization': `Bearer ${token}` };
 
-        const [moviesSnapshot, settingsDoc] = await Promise.all([
-            moviesCollection.get(),
-            settingsDocRef.get(),
+        const moviesUrl = `${API_BASE_URL}/movies`;
+        const settingsUrl = `${API_BASE_URL}/settings/user-settings`;
+
+        const [moviesResponse, settingsResponse] = await Promise.all([
+            fetch(moviesUrl, { headers }),
+            fetch(settingsUrl, { headers }),
         ]);
 
-        const movies = moviesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Movie));
-        
+        if (!moviesResponse.ok && moviesResponse.status !== 404) {
+            const error = await moviesResponse.json();
+            throw new Error(`Failed to fetch movies: ${JSON.stringify(error)}`);
+        }
+        const moviesData = moviesResponse.ok ? await moviesResponse.json() : { documents: [] };
+        const movies = (moviesData.documents || []).map(documentToMovie);
+
         let cycleSpeed = 7;
-        if (settingsDoc.exists) {
-            const settingsData = settingsDoc.data();
-            if (settingsData && settingsData.cycleSpeed !== undefined) {
-                cycleSpeed = settingsData.cycleSpeed;
+        if (settingsResponse.ok) {
+            const settingsData = await settingsResponse.json();
+            if (settingsData.fields?.cycleSpeed) {
+                cycleSpeed = parseValue(settingsData.fields.cycleSpeed);
             }
         }
-
+        
         return { movies, cycleSpeed };
     } catch (error: any) {
         console.error("Error in getMoviesAndSettings:", error);
@@ -45,8 +103,29 @@ export async function getMoviesAndSettings() {
 
 export async function saveSettings(cycleSpeed: number) {
     try {
-        const settingsRef = db.doc('settings/user-settings');
-        await settingsRef.set({ cycleSpeed }, { merge: true });
+        const token = await getAuthToken();
+        const url = `${API_BASE_URL}/settings/user-settings`;
+
+        const payload = {
+            fields: {
+                cycleSpeed: formatValue(cycleSpeed),
+            }
+        };
+
+        const response = await fetch(`${url}?updateMask.fieldPaths=cycleSpeed`, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(JSON.stringify(error));
+        }
+
         return { success: true };
     } catch (error: any) {
         console.error("Error saving settings:", error);
@@ -56,7 +135,26 @@ export async function saveSettings(cycleSpeed: number) {
 
 export async function addMovie(movie: UploadedMovie) {
     try {
-        await db.collection('movies').add(movie);
+        const token = await getAuthToken();
+        const url = `${API_BASE_URL}/movies`;
+
+        const payload = {
+            fields: formatValue(movie).mapValue?.fields
+        };
+        
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(JSON.stringify(error));
+        }
         return { success: true };
     } catch (error: any) {
         console.error("Error adding movie:", error);
@@ -64,11 +162,33 @@ export async function addMovie(movie: UploadedMovie) {
     }
 }
 
+
 export async function updateMovie(movie: Movie) {
     try {
-        const movieRef = db.doc(`movies/${movie.id}`);
+        const token = await getAuthToken();
         const { id, ...movieData } = movie;
-        await movieRef.set(movieData, { merge: true });
+        const url = `${API_BASE_URL}/movies/${id}`;
+
+        const payload = {
+            fields: formatValue(movieData).mapValue?.fields
+        };
+
+        // Create a list of field paths to update.
+        const updateMask = Object.keys(movieData).map(field => `updateMask.fieldPaths=${field}`).join('&');
+
+        const response = await fetch(`${url}?${updateMask}`, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(JSON.stringify(error));
+        }
         return { success: true };
     } catch (error: any) {
         console.error("Error updating movie:", error);
@@ -78,7 +198,18 @@ export async function updateMovie(movie: Movie) {
 
 export async function deleteMovie(movieId: string) {
     try {
-        await db.doc(`movies/${movieId}`).delete();
+        const token = await getAuthToken();
+        const url = `${API_BASE_URL}/movies/${movieId}`;
+
+        const response = await fetch(url, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` },
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(JSON.stringify(error));
+        }
         return { success: true };
     } catch (error: any) {
         console.error("Error deleting movie:", error);
@@ -87,13 +218,27 @@ export async function deleteMovie(movieId: string) {
 }
 
 export async function deleteSelectedMovies(movieIds: string[]) {
-    try {
-        const batch = db.batch();
-        movieIds.forEach(movieId => {
-            const docRef = db.doc(`movies/${movieId}`);
-            batch.delete(docRef);
+     try {
+        const token = await getAuthToken();
+        const url = `${API_BASE_URL}:commit`;
+        
+        const writes = movieIds.map(movieId => ({
+            delete: `projects/${PROJECT_ID}/databases/(default)/documents/movies/${movieId}`
+        }));
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ writes }),
         });
-        await batch.commit();
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(JSON.stringify(error));
+        }
         return { success: true };
     } catch (error: any) {
         console.error("Error deleting movies:", error);
