@@ -2,14 +2,15 @@
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
-import type { Movie } from '@/lib/data';
+import type { Movie, UploadedMovie } from '@/lib/data';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, doc, setDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc, addDoc } from 'firebase/firestore';
 
 interface MovieContextType {
   movies: Movie[];
   cycleSpeed: number;
   loading: boolean;
+  addMovie: (movie: UploadedMovie) => Promise<void>;
   setCycleSpeed: React.Dispatch<React.SetStateAction<number>>; // Allow direct setting from manage page
 }
 
@@ -27,7 +28,7 @@ export const MovieProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const unsubscribeMovies = onSnapshot(moviesCollection, (snapshot) => {
       const fetchedMovies = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Movie));
       setMovies(fetchedMovies);
-      if (loading) setLoading(false); // Only set loading to false on initial load
+      if (loading) setLoading(false);
     }, (error) => {
       console.error("Error fetching movies from Firestore:", error);
       setLoading(false);
@@ -51,11 +52,20 @@ export const MovieProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  
+  const addMovie = async (movie: UploadedMovie) => {
+    try {
+      await addDoc(collection(db, 'movies'), movie);
+    } catch (error) {
+      console.error("Error adding document: ", error);
+    }
+  };
 
   const contextValue = {
     movies,
     cycleSpeed,
     loading,
+    addMovie,
     setCycleSpeed
   };
 

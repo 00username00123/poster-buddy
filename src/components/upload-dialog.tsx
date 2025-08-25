@@ -143,7 +143,7 @@ export function UploadDialog() {
         }
     }
     for (const movie of uploadedMovies) {
-      addMovie(movie);
+      await addMovie(movie);
     }
     
     setOpen(false);
