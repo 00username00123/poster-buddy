@@ -1,36 +1,37 @@
 
 'use server';
 
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore, collection, getDocs, doc, setDoc, addDoc, deleteDoc, writeBatch, getDoc } from 'firebase/firestore';
+import { initializeApp, getApps, getApp, cert } from 'firebase-admin/app';
+import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import { Movie, UploadedMovie } from '@/lib/data';
 
-const firebaseConfig = {
-    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-};
+const apps = getApps();
+if (!apps.length) {
+    try {
+        initializeApp({
+            projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+        });
+    } catch (e) {
+        console.error('Firebase admin initialization error', e);
+    }
+}
 
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-const db = getFirestore(app);
+const db = getFirestore();
 
 export async function getMoviesAndSettings() {
     try {
-        const moviesCollection = collection(db, 'movies');
-        const settingsDocRef = doc(db, 'settings', 'user-settings');
+        const moviesCollection = db.collection('movies');
+        const settingsDocRef = db.doc('settings/user-settings');
 
         const [moviesSnapshot, settingsDoc] = await Promise.all([
-            getDocs(moviesCollection),
-            getDoc(settingsDocRef),
+            moviesCollection.get(),
+            settingsDocRef.get(),
         ]);
 
         const movies = moviesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Movie));
         
         let cycleSpeed = 7;
-        if (settingsDoc.exists()) {
+        if (settingsDoc.exists) {
             const settingsData = settingsDoc.data();
             if (settingsData && settingsData.cycleSpeed !== undefined) {
                 cycleSpeed = settingsData.cycleSpeed;
@@ -46,8 +47,8 @@ export async function getMoviesAndSettings() {
 
 export async function saveSettings(cycleSpeed: number) {
     try {
-        const settingsRef = doc(db, 'settings', 'user-settings');
-        await setDoc(settingsRef, { cycleSpeed });
+        const settingsRef = db.doc('settings/user-settings');
+        await settingsRef.set({ cycleSpeed });
         return { success: true };
     } catch (error) {
         return { success: false, error: 'Failed to save settings.' };
@@ -57,7 +58,7 @@ export async function saveSettings(cycleSpeed: number) {
 
 export async function addMovie(movie: UploadedMovie) {
     try {
-        await addDoc(collection(db, "movies"), movie);
+        await db.collection("movies").add(movie);
         return { success: true };
     } catch (error: any) {
         console.error("Error in addMovie:", error);
@@ -67,8 +68,8 @@ export async function addMovie(movie: UploadedMovie) {
 
 export async function updateMovie(movie: Movie) {
     try {
-        const movieRef = doc(db, 'movies', movie.id);
-        await setDoc(movieRef, movie);
+        const movieRef = db.doc(`movies/${movie.id}`);
+        await movieRef.set(movie, { merge: true });
         return { success: true };
     } catch (error) {
         return { success: false, error: 'Failed to update movie.' };
@@ -77,7 +78,7 @@ export async function updateMovie(movie: Movie) {
 
 export async function deleteMovie(movieId: string) {
     try {
-        await deleteDoc(doc(db, "movies", movieId));
+        await db.doc(`movies/${movieId}`).delete();
         return { success: true };
     } catch (error) {
         return { success: false, error: 'Failed to delete movie.' };
@@ -86,9 +87,9 @@ export async function deleteMovie(movieId: string) {
 
 export async function deleteSelectedMovies(movieIds: string[]) {
     try {
-        const batch = writeBatch(db);
+        const batch = db.batch();
         movieIds.forEach(movieId => {
-            const docRef = doc(db, "movies", movieId);
+            const docRef = db.doc(`movies/${movieId}`);
             batch.delete(docRef);
         });
         await batch.commit();
