@@ -1,54 +1,54 @@
-
 'use server';
 
-import { initializeApp, getApps, getApp } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getFirestore, collection, getDocs, doc, setDoc, addDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { Movie, UploadedMovie } from '@/lib/data';
 
-// Explicitly define the projectId for initialization.
-const projectId = 'posterscript';
+const firebaseConfig = {
+    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+};
 
-// Initialize Firebase Admin SDK if not already initialized.
-if (!getApps().length) {
-  initializeApp({ projectId });
-}
-
-const db = getFirestore();
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const db = getFirestore(app);
 
 export async function getMoviesAndSettings() {
-  try {
-    const moviesCollection = db.collection('movies');
-    const settingsDocRef = db.collection('settings').doc('user-settings');
+    try {
+        const moviesCollection = collection(db, 'movies');
+        const settingsDocRef = doc(db, 'settings', 'user-settings');
 
-    const [moviesSnapshot, settingsDoc] = await Promise.all([
-      moviesCollection.get(),
-      settingsDocRef.get(),
-    ]);
+        const [moviesSnapshot, settingsDoc] = await Promise.all([
+            getDocs(moviesCollection),
+            getDoc(settingsDocRef),
+        ]);
 
-    const movies = moviesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Movie));
-    
-    let cycleSpeed = 7; // Default value
-    if (settingsDoc.exists) {
-        const settingsData = settingsDoc.data();
-        if (settingsData && settingsData.cycleSpeed !== undefined) {
-            cycleSpeed = settingsData.cycleSpeed;
+        const movies = moviesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Movie));
+        
+        let cycleSpeed = 7;
+        if (settingsDoc.exists()) {
+            const settingsData = settingsDoc.data();
+            if (settingsData && settingsData.cycleSpeed !== undefined) {
+                cycleSpeed = settingsData.cycleSpeed;
+            }
         }
-    }
 
-    return { movies, cycleSpeed };
-  } catch (error) {
-    console.error("Error fetching data from Firestore:", error);
-    return { movies: [], cycleSpeed: 7, error: 'Failed to load data.' };
-  }
+        return { movies, cycleSpeed };
+    } catch (error) {
+        console.error("Error in getMoviesAndSettings:", error);
+        return { error: 'Failed to load data.' };
+    }
 }
 
 export async function saveSettings(cycleSpeed: number) {
     try {
-        const settingsRef = db.collection('settings').doc('user-settings');
-        await settingsRef.set({ cycleSpeed: cycleSpeed });
+        const settingsRef = doc(db, 'settings', 'user-settings');
+        await setDoc(settingsRef, { cycleSpeed });
         return { success: true };
     } catch (error) {
-        console.error("Error saving settings:", error);
         return { success: false, error: 'Failed to save settings.' };
     }
 }
@@ -56,46 +56,43 @@ export async function saveSettings(cycleSpeed: number) {
 
 export async function addMovie(movie: UploadedMovie) {
     try {
-        const docRef = await db.collection('movies').add(movie);
-        return { success: true, id: docRef.id };
-    } catch (error) {
-        console.error("Error adding movie:", error);
+        await addDoc(collection(db, "movies"), movie);
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error in addMovie:", error);
         return { success: false, error: 'Failed to add movie.' };
     }
 }
 
 export async function updateMovie(movie: Movie) {
     try {
-        const movieRef = db.collection('movies').doc(movie.id);
-        await movieRef.set(movie);
+        const movieRef = doc(db, 'movies', movie.id);
+        await setDoc(movieRef, movie);
         return { success: true };
     } catch (error) {
-        console.error("Error updating movie:", error);
         return { success: false, error: 'Failed to update movie.' };
     }
 }
 
 export async function deleteMovie(movieId: string) {
     try {
-        await db.collection('movies').doc(movieId).delete();
+        await deleteDoc(doc(db, "movies", movieId));
         return { success: true };
     } catch (error) {
-        console.error("Error deleting movie:", error);
         return { success: false, error: 'Failed to delete movie.' };
     }
 }
 
 export async function deleteSelectedMovies(movieIds: string[]) {
     try {
-        const deletePromises = movieIds.map(movieId => {
-            const docRef = db.collection("movies").doc(movieId);
-            return docRef.delete();
+        const batch = writeBatch(db);
+        movieIds.forEach(movieId => {
+            const docRef = doc(db, "movies", movieId);
+            batch.delete(docRef);
         });
-        await Promise.all(deletePromises);
+        await batch.commit();
         return { success: true };
     } catch (error) {
-        console.error("Error deleting selected movies:", error);
-        return { success: false, error: 'Failed to delete movies.' };
+        return { success: false, error: 'Failed to delete selected movies.' };
     }
 }
-

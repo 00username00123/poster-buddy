@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Film } from "lucide-react";
 import { PosterView } from "@/components/poster-view";
 import { Movie } from "@/lib/data";
-import { getMoviesAndSettings } from "./actions";
-
+import { getFirestore, collection, onSnapshot, doc, getDoc } from "firebase/firestore";
+import { app } from "@/lib/firebase";
 
 export default function Home() {
   const [movies, setMovies] = useState<Movie[]>([]);
@@ -16,21 +16,52 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    const { movies: fetchedMovies, cycleSpeed: fetchedCycleSpeed, error } = await getMoviesAndSettings();
-    if (error) {
-      console.error("Error fetching data:", error);
-    } else {
-      setMovies(fetchedMovies);
-      setCycleSpeed(fetchedCycleSpeed);
-    }
-    setLoading(false);
-  }, []);
-
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    const db = getFirestore(app);
+    setLoading(true);
+
+    const moviesCollection = collection(db, 'movies');
+    const settingsDocRef = doc(db, 'settings', 'user-settings');
+
+    const unsubscribeMovies = onSnapshot(moviesCollection, (snapshot) => {
+      const fetchedMovies = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Movie));
+      setMovies(fetchedMovies);
+      setLoading(false);
+    }, (error) => {
+      console.error("Error fetching movies:", error);
+      setLoading(false);
+    });
+
+    const getSettings = async () => {
+        try {
+            const settingsDoc = await getDoc(settingsDocRef);
+            if (settingsDoc.exists()) {
+                const settingsData = settingsDoc.data();
+                if (settingsData && settingsData.cycleSpeed !== undefined) {
+                    setCycleSpeed(settingsData.cycleSpeed);
+                }
+            }
+        } catch (error) {
+            console.error("Error fetching settings:", error);
+        }
+    };
+    
+    getSettings();
+
+    const unsubscribeSettings = onSnapshot(settingsDocRef, (doc) => {
+        if (doc.exists()) {
+            const settingsData = doc.data();
+            if (settingsData && settingsData.cycleSpeed !== undefined) {
+                setCycleSpeed(settingsData.cycleSpeed);
+            }
+        }
+    });
+
+    return () => {
+      unsubscribeMovies();
+      unsubscribeSettings();
+    };
+  }, []);
 
 
   const goToPrevious = useCallback(() => {

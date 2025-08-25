@@ -23,7 +23,8 @@ import { Movie } from "@/lib/data";
 import { Film, Trash2, Home, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { UploadDialog } from "@/components/upload-dialog";
-import { getMoviesAndSettings, saveSettings, deleteMovie, deleteSelectedMovies, updateMovie } from "@/app/actions";
+import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, writeBatch } from "firebase/firestore";
+import { app } from "@/lib/firebase";
 
 interface MovieCardProps {
   movie: Movie;
@@ -95,17 +96,34 @@ export default function ManagePage() {
   const { toast } = useToast();
   const [selectedMovies, setSelectedMovies] = useState<string[]>([]);
   
+  const db = getFirestore(app);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const { movies: fetchedMovies, cycleSpeed: fetchedCycleSpeed, error } = await getMoviesAndSettings();
-    if (error) {
-      toast({ title: "Load Failed", description: error, variant: "destructive" });
-    } else {
+    try {
+      const moviesCollection = collection(db, 'movies');
+      const settingsDocRef = doc(db, 'settings', 'user-settings');
+
+      const [moviesSnapshot, settingsDoc] = await Promise.all([
+        getDocs(moviesCollection),
+        doc(settingsDocRef).get(),
+      ]);
+
+      const fetchedMovies = moviesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Movie));
       setMovies(fetchedMovies);
-      setCycleSpeed(fetchedCycleSpeed);
+
+      if (settingsDoc.exists()) {
+          const settingsData = settingsDoc.data();
+          if (settingsData && settingsData.cycleSpeed !== undefined) {
+              setCycleSpeed(settingsData.cycleSpeed);
+          }
+      }
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      toast({ title: "Load Failed", description: "Failed to load data from Firestore.", variant: "destructive" });
     }
     setLoading(false);
-  }, [toast]);
+  }, [db, toast]);
 
   useEffect(() => {
     fetchData();
@@ -121,16 +139,17 @@ export default function ManagePage() {
   };
 
   const handleDeleteAction = async (movieToDelete: Movie) => {
-    const result = await deleteMovie(movieToDelete.id);
-    if (result.success) {
+    try {
+      await deleteDoc(doc(db, "movies", movieToDelete.id));
       setMovies(prev => prev.filter(m => m.id !== movieToDelete.id));
       toast({
           title: "Movie Deleted",
           description: `${movieToDelete.name} has been removed.`,
           variant: "destructive",
       });
-    } else {
-      toast({ title: "Delete Failed", description: result.error, variant: "destructive" });
+    } catch (error) {
+        console.error("Error deleting movie:", error);
+        toast({ title: "Delete Failed", description: "Could not delete movie.", variant: "destructive" });
     }
   };
 
@@ -169,41 +188,50 @@ export default function ManagePage() {
   };
 
   const handleDeleteSelectedAction = async () => {
-    const result = await deleteSelectedMovies(selectedMovies);
-    if(result.success) {
-      setMovies(prev => prev.filter(m => !selectedMovies.includes(m.id)));
-      toast({
-          title: `${selectedMovies.length} Movies Deleted`,
-          description: `The selected movies have been removed.`,
-      });
-      setSelectedMovies([]);
-    } else {
-      toast({ title: "Delete Failed", description: result.error, variant: "destructive" });
+    try {
+        const batch = writeBatch(db);
+        selectedMovies.forEach(movieId => {
+            const docRef = doc(db, "movies", movieId);
+            batch.delete(docRef);
+        });
+        await batch.commit();
+
+        setMovies(prev => prev.filter(m => !selectedMovies.includes(m.id)));
+        toast({
+            title: `${selectedMovies.length} Movies Deleted`,
+            description: `The selected movies have been removed.`,
+        });
+        setSelectedMovies([]);
+    } catch (error) {
+        console.error("Error deleting selected movies:", error);
+        toast({ title: "Delete Failed", description: "Could not delete selected movies.", variant: "destructive" });
     }
   };
 
   const handleSave = async () => {
     if (!editingMovie) return;
-
-    const result = await updateMovie(editingMovie);
-    if (result.success) {
-      setMovies(prev => prev.map(m => m.id === editingMovie.id ? editingMovie : m));
-      toast({
-          title: "Movie Updated",
-          description: `${editingMovie.name} has been updated.`,
-      });
-      setEditingMovie(null);
-    } else {
-      toast({ title: "Update Failed", description: result.error, variant: "destructive" });
+    try {
+        await setDoc(doc(db, "movies", editingMovie.id), editingMovie);
+        setMovies(prev => prev.map(m => m.id === editingMovie.id ? editingMovie : m));
+        toast({
+            title: "Movie Updated",
+            description: `${editingMovie.name} has been updated.`,
+        });
+        setEditingMovie(null);
+    } catch(error) {
+        console.error("Error updating movie:", error);
+        toast({ title: "Update Failed", description: "Could not update movie.", variant: "destructive" });
     }
   };
 
   const handleSaveLayout = async () => {
-    const result = await saveSettings(cycleSpeed);
-    if(result.success) {
+    try {
+      const settingsRef = doc(db, 'settings', 'user-settings');
+      await setDoc(settingsRef, { cycleSpeed });
       toast({ title: "Settings Saved", description: "Your changes have been saved successfully." });
-    } else {
-      toast({ title: "Save Failed", description: result.error, variant: "destructive" });
+    } catch(error) {
+       console.error("Error saving settings:", error);
+       toast({ title: "Save Failed", description: "Could not save settings.", variant: "destructive" });
     }
   };
 
@@ -221,7 +249,7 @@ Rating: ${movie.rating}`;
     a.href = url;
     a.download = `${movie.name.replace(/\s+/g, '_')}_info.txt`;
     document.body.appendChild(a);
-a.click();
+    a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };

@@ -17,8 +17,8 @@ import { Label } from "@/components/ui/label";
 import { Upload } from "lucide-react";
 import type { UploadedMovie } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
-import { addMovie } from '@/app/actions';
-
+import { getFirestore, collection, addDoc, writeBatch } from 'firebase/firestore';
+import { app } from '@/lib/firebase';
 
 interface UploadDialogProps {
   onUploadComplete: () => void;
@@ -126,60 +126,64 @@ export function UploadDialog({ onUploadComplete }: UploadDialogProps) {
       });
     }
 
-    const uploadPromises = Object.keys(fileGroups).map(async (name) => {
-        const group = fileGroups[name];
-        if (group.poster && group.info) {
-           const infoText = await group.info!.text();
-           const info: Record<string, string> = {};
-           let descriptionParts: string[] = [];
-           
-           const lines = infoText.split('\n');
-           let currentKey = 'description';
-
-           lines.forEach(line => {
-               const parts = line.split(':');
-               if (parts.length > 1) {
-                   const key = parts[0].toLowerCase().replace(/\s/g, '');
-                   const value = parts.slice(1).join(':').trim();
-                   info[key] = value;
-                   if(key === 'rating') currentKey = 'post-rating';
-               } else if (line.trim().length > 0 && currentKey === 'description') {
-                 descriptionParts.push(line.trim());
-               }
-           });
-           info.description = descriptionParts.join('\n');
-
-           const posterUrl = await resizePoster(group.poster!);
-           const logoUrl = group.logo ? await fileToDataUrl(group.logo) : 'https://placehold.co/400x150.png';
-
-           const newMovie: UploadedMovie = {
-               name: info.name || name.replace(/_/g, ' '),
-               posterUrl,
-               logoUrl,
-               description: info.description || '',
-               starring: info.starring || '',
-               director: info.director || '',
-               runtime: info.runtime || '',
-               genre: info.genre || '',
-               rating: info.rating || '',
-               posterAiHint: `movie poster for ${name}`,
-           };
-           
-           const result = await addMovie(newMovie);
-           if (!result.success) {
-               throw new Error(result.error || `Failed to upload ${name}`);
-           }
-        }
-    });
-    
+    let moviesAdded = 0;
     try {
-      await Promise.all(uploadPromises);
-      if (uploadPromises.length > 0) {
-        toast({ title: "Upload Complete", description: `${uploadPromises.length} movie(s) have been added.` });
+      const db = getFirestore(app);
+      const batch = writeBatch(db);
+
+      for (const name in fileGroups) {
+          const group = fileGroups[name];
+          if (group.poster && group.info) {
+             const infoText = await group.info!.text();
+             const info: Record<string, string> = {};
+             let descriptionParts: string[] = [];
+             
+             const lines = infoText.split('\n');
+             let currentKey = 'description';
+
+             lines.forEach(line => {
+                 const parts = line.split(':');
+                 if (parts.length > 1) {
+                     const key = parts[0].toLowerCase().replace(/\s/g, '');
+                     const value = parts.slice(1).join(':').trim();
+                     info[key] = value;
+                     if(key === 'rating') currentKey = 'post-rating';
+                 } else if (line.trim().length > 0 && currentKey === 'description') {
+                   descriptionParts.push(line.trim());
+                 }
+             });
+             info.description = descriptionParts.join('\n');
+
+             const posterUrl = await resizePoster(group.poster!);
+             const logoUrl = group.logo ? await fileToDataUrl(group.logo) : 'https://placehold.co/400x150.png';
+
+             const newMovie: UploadedMovie = {
+                 name: info.name || name.replace(/_/g, ' '),
+                 posterUrl,
+                 logoUrl,
+                 description: info.description || '',
+                 starring: info.starring || '',
+                 director: info.director || '',
+                 runtime: info.runtime || '',
+                 genre: info.genre || '',
+                 rating: info.rating || '',
+                 posterAiHint: `movie poster for ${name}`,
+             };
+             
+             const docRef = doc(collection(db, "movies"));
+             batch.set(docRef, newMovie);
+             moviesAdded++;
+          }
+      }
+
+      if(moviesAdded > 0){
+        await batch.commit();
+        toast({ title: "Upload Complete", description: `${moviesAdded} movie(s) have been added.` });
         onUploadComplete();
       } else {
         toast({ title: "Upload Info", description: "No valid movie sets found to upload.", variant: "default" });
       }
+
     } catch (error: any) {
        console.error("Error uploading movies:", error);
        toast({ title: "Upload Failed", description: error.message || "An error occurred while uploading.", variant: "destructive" });
