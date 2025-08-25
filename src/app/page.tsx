@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -9,8 +10,13 @@ import { useMovies } from "@/context/MovieContext";
 import { UploadDialog } from "@/components/upload-dialog";
 
 export default function Home() {
-  const { movies, loading, cycleSpeed } = useMovies();
+  const { movies, loading, cycleSpeed, loadData } = useMovies();
   const [currentIndex, setCurrentIndex] = useState(0);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
 
   const goToPrevious = useCallback(() => {
     if (movies.length === 0) return;

@@ -1,6 +1,6 @@
 
 'use client';
-import { useCallback, useState } from "react";
+import { useCallback, useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -87,10 +87,15 @@ const MovieCard: React.FC<MovieCardProps> = ({
 
 
 export default function ManagePage() {
-  const { movies, updateMovie, deleteMovie, cycleSpeed, setCycleSpeed, loading, saveLayout } = useMovies();
+  const { movies, updateMovie, deleteMovie, cycleSpeed, setCycleSpeed, loading, saveLayout, loadData } = useMovies();
   const [editingMovie, setEditingMovie] = useState<Movie | null>(null);  
   const { toast } = useToast();
   const [selectedMovies, setSelectedMovies] = useState<string[]>([]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
 
   const handleEdit = (movie: Movie) => {
     setEditingMovie(JSON.parse(JSON.stringify(movie)));
