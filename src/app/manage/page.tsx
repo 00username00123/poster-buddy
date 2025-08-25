@@ -24,6 +24,7 @@ import { Film, Trash2, Home, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
 import { collection, doc, getDocs, writeBatch, deleteDoc, setDoc } from 'firebase/firestore';
+import { UploadDialog } from "@/components/upload-dialog";
 
 interface MovieCardProps {
   movie: Movie;
@@ -327,6 +328,7 @@ Rating: ${movie.rating}`;
              <Link href="/">
                 <Button variant="outline"><Home className="mr-2 h-4 w-4"/> Home</Button>
             </Link>
+            <UploadDialog onUploadComplete={fetchData}/>
           </div>
         </div>
       </header>

@@ -101,7 +101,6 @@ export default function Home() {
             <Link href="/manage">
               <Button variant="outline">Manage Posters</Button>
             </Link>
-            <UploadDialog onUploadComplete={fetchData}/>
           </div>
         </div>
       </header>
