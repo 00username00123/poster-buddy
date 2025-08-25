@@ -16,12 +16,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Upload } from "lucide-react";
 import type { UploadedMovie } from '@/lib/data';
-import { useMovies } from '@/context/MovieContext';
+import { db } from '@/lib/firebase';
+import { collection, addDoc } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
 
-export function UploadDialog() {
+
+interface UploadDialogProps {
+  onUploadComplete: () => void;
+}
+
+export function UploadDialog({ onUploadComplete }: UploadDialogProps) {
   const [open, setOpen] = useState(false);
   const [files, setFiles] = useState<FileList | null>(null);
-  const { addMovie } = useMovies();
+  const { toast } = useToast();
  
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => { 
     setFiles(event.target.files);
@@ -61,9 +68,17 @@ export function UploadDialog() {
             let width = img.width;
             let height = img.height;
 
-            const ratio = Math.min(maxWidth / width, maxHeight / height);
-            width *= ratio;
-            height *= ratio;
+            if (width > height) {
+              if (width > maxWidth) {
+                height = height * (maxWidth / width);
+                width = maxWidth;
+              }
+            } else {
+              if (height > maxHeight) {
+                width = width * (maxHeight / height);
+                height = maxHeight;
+              }
+            }
 
             const canvas = document.createElement('canvas');
             canvas.width = width;
@@ -99,52 +114,64 @@ export function UploadDialog() {
       });
     }
 
-    const uploadedMovies: UploadedMovie[] = [];
+    const uploadPromises: Promise<any>[] = [];
 
     for (const name in fileGroups) {
         const group = fileGroups[name];
         if (group.poster && group.info) {
-            const infoText = await group.info.text();
-            const info: Record<string, string> = {};
-            let descriptionParts: string[] = [];
-            
-            const lines = infoText.split('\n');
-            let currentKey = 'description';
+           const uploadTask = async () => {
+                const infoText = await group.info!.text();
+                const info: Record<string, string> = {};
+                let descriptionParts: string[] = [];
+                
+                const lines = infoText.split('\n');
+                let currentKey = 'description';
 
-            lines.forEach(line => {
-                const parts = line.split(':');
-                if (parts.length > 1) {
-                    const key = parts[0].toLowerCase().replace(/\s/g, '');
-                    const value = parts.slice(1).join(':').trim();
-                    info[key] = value;
-                    if(key === 'rating') currentKey = 'post-rating';
-                } else if (line.trim().length > 0 && currentKey === 'description') {
-                  descriptionParts.push(line.trim());
-                }
-            });
-            info.description = descriptionParts.join('\n');
+                lines.forEach(line => {
+                    const parts = line.split(':');
+                    if (parts.length > 1) {
+                        const key = parts[0].toLowerCase().replace(/\s/g, '');
+                        const value = parts.slice(1).join(':').trim();
+                        info[key] = value;
+                        if(key === 'rating') currentKey = 'post-rating';
+                    } else if (line.trim().length > 0 && currentKey === 'description') {
+                      descriptionParts.push(line.trim());
+                    }
+                });
+                info.description = descriptionParts.join('\n');
 
-            const posterUrl = await resizePoster(group.poster);
-            const logoUrl = group.logo ? await fileToDataUrl(group.logo) : 'https://placehold.co/400x150.png';
+                const posterUrl = await resizePoster(group.poster!);
+                const logoUrl = group.logo ? await fileToDataUrl(group.logo) : 'https://placehold.co/400x150.png';
 
-            const newMovie: UploadedMovie = {
-                name: info.name || name.replace(/_/g, ' '),
-                posterUrl,
-                logoUrl,
-                description: info.description || '',
-                starring: info.starring || '',
-                director: info.director || '',
-                runtime: info.runtime || '',
-                genre: info.genre || '',
-                rating: info.rating || '',
-                posterAiHint: `movie poster for ${name}`,
-            };
-            uploadedMovies.push(newMovie);
+                const newMovie: UploadedMovie = {
+                    name: info.name || name.replace(/_/g, ' '),
+                    posterUrl,
+                    logoUrl,
+                    description: info.description || '',
+                    starring: info.starring || '',
+                    director: info.director || '',
+                    runtime: info.runtime || '',
+                    genre: info.genre || '',
+                    rating: info.rating || '',
+                    posterAiHint: `movie poster for ${name}`,
+                };
+                await addDoc(collection(db, 'movies'), newMovie);
+            }
+            uploadPromises.push(uploadTask());
         }
     }
     
-    if (uploadedMovies.length > 0) {
-      await Promise.all(uploadedMovies.map(movie => addMovie(movie)));
+    try {
+      await Promise.all(uploadPromises);
+      if (uploadPromises.length > 0) {
+        toast({ title: "Upload Complete", description: `${uploadPromises.length} movie(s) have been added.` });
+        onUploadComplete();
+      } else {
+        toast({ title: "Upload Info", description: "No valid movie sets found to upload.", variant: "default" });
+      }
+    } catch (error) {
+       console.error("Error uploading movies:", error);
+       toast({ title: "Upload Failed", description: "An error occurred while uploading.", variant: "destructive" });
     }
     
     setOpen(false);

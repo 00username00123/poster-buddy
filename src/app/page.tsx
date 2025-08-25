@@ -6,12 +6,47 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Film } from "lucide-react";
 import { PosterView } from "@/components/poster-view";
-import { useMovies } from "@/context/MovieContext";
 import { UploadDialog } from "@/components/upload-dialog";
+import { Movie } from "@/lib/data";
+import { db } from "@/lib/firebase";
+import { collection, getDocs, doc } from 'firebase/firestore';
 
 export default function Home() {
-  const { movies, loading, cycleSpeed } = useMovies();
+  const [movies, setMovies] = useState<Movie[]>([]);
+  const [cycleSpeed, setCycleSpeed] = useState(7);
+  const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const moviesCollection = collection(db, 'movies');
+      const settingsDocRef = doc(db, 'settings', 'user-settings');
+      
+      const [moviesSnapshot, settingsDoc] = await Promise.all([
+        getDocs(moviesCollection),
+        getDocs(collection(db, 'settings'))
+      ]);
+
+      const fetchedMovies = moviesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Movie));
+      setMovies(fetchedMovies);
+
+      const settingsData = settingsDoc.docs.find(d => d.id === 'user-settings')?.data();
+      if (settingsData && settingsData.cycleSpeed !== undefined) {
+        setCycleSpeed(settingsData.cycleSpeed);
+      }
+      
+    } catch (error) {
+      console.error("Error fetching data from Firestore:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
 
   const goToPrevious = useCallback(() => {
     if (movies.length === 0) return;
@@ -66,7 +101,7 @@ export default function Home() {
             <Link href="/manage">
               <Button variant="outline">Manage Posters</Button>
             </Link>
-            <UploadDialog />
+            <UploadDialog onUploadComplete={fetchData}/>
           </div>
         </div>
       </header>
@@ -128,5 +163,3 @@ export default function Home() {
     </>
   );
 }
-
-    

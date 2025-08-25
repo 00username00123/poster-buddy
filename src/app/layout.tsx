@@ -2,7 +2,6 @@ import type {Metadata} from 'next';
 import { Film } from 'lucide-react';
 import { Toaster } from "@/components/ui/toaster"
 import './globals.css';
-import { MovieProvider } from "@/context/MovieContext";
 
 export const metadata: Metadata = {
   title: 'Poster Buddy',
@@ -23,9 +22,7 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased bg-background text-foreground">
         <div className="flex flex-col min-h-screen">
- <MovieProvider>
- <main className="flex-1">{children}</main>
- </MovieProvider>
+          <main className="flex-1">{children}</main>
         </div>
         <Toaster />
       </body>

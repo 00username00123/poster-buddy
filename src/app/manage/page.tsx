@@ -17,14 +17,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { useMovies } from "@/context/MovieContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Movie } from "@/lib/data";
 import { Film, Trash2, Home, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { db } from "@/lib/firebase";
-import { writeBatch, doc, deleteDoc, setDoc } from 'firebase/firestore';
+import { collection, doc, getDocs, writeBatch, deleteDoc, setDoc } from 'firebase/firestore';
 
 interface MovieCardProps {
   movie: Movie;
@@ -89,19 +88,44 @@ const MovieCard: React.FC<MovieCardProps> = ({
 
 
 export default function ManagePage() {
-  const { movies: contextMovies, cycleSpeed: contextCycleSpeed, loading, addMovie, updateMovie: contextUpdateMovie, deleteMovie: contextDeleteMovie } = useMovies();
-  const [localMovies, setLocalMovies] = useState<Movie[]>([]);
-  const [localCycleSpeed, setLocalCycleSpeed] = useState<number>(7);
+  const [movies, setMovies] = useState<Movie[]>([]);
+  const [cycleSpeed, setCycleSpeed] = useState<number>(7);
+  const [loading, setLoading] = useState(true);
   const [editingMovie, setEditingMovie] = useState<Movie | null>(null);
   const { toast } = useToast();
   const [selectedMovies, setSelectedMovies] = useState<string[]>([]);
   
-  useEffect(() => {
-    if (!loading) {
-      setLocalMovies(contextMovies);
-      setLocalCycleSpeed(contextCycleSpeed);
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const moviesCollection = collection(db, 'movies');
+      const settingsDocRef = doc(db, 'settings', 'user-settings');
+      
+      const [moviesSnapshot, settingsDoc] = await Promise.all([
+        getDocs(moviesCollection),
+        getDocs(collection(db, 'settings'))
+      ]);
+
+      const fetchedMovies = moviesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Movie));
+      setMovies(fetchedMovies);
+
+      const settingsData = settingsDoc.docs.find(d => d.id === 'user-settings')?.data();
+      if (settingsData && settingsData.cycleSpeed !== undefined) {
+        setCycleSpeed(settingsData.cycleSpeed);
+      }
+      
+    } catch (error) {
+      console.error("Error fetching data from Firestore:", error);
+      toast({ title: "Load Failed", description: "An error occurred while loading data.", variant: "destructive" });
+    } finally {
+      setLoading(false);
     }
-  }, [contextMovies, contextCycleSpeed, loading]);
+  }, [toast]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
 
   const handleEdit = (movie: Movie) => {
     setEditingMovie(JSON.parse(JSON.stringify(movie)));
@@ -114,6 +138,7 @@ export default function ManagePage() {
   const handleDelete = async (movieToDelete: Movie) => {
     try {
         await deleteDoc(doc(db, "movies", movieToDelete.id));
+        setMovies(prev => prev.filter(m => m.id !== movieToDelete.id));
         toast({
             title: "Movie Deleted",
             description: `${movieToDelete.name} has been removed.`,
@@ -152,10 +177,10 @@ export default function ManagePage() {
   }, []);
 
   const handleSelectAll = () => {
-    if (selectedMovies.length === localMovies.length) {
+    if (selectedMovies.length === movies.length) {
       setSelectedMovies([]);
     } else {
-      setSelectedMovies(localMovies.map(movie => movie.id));
+      setSelectedMovies(movies.map(movie => movie.id));
     }
   };
 
@@ -166,6 +191,7 @@ export default function ManagePage() {
     });
     try {
         await batch.commit();
+        setMovies(prev => prev.filter(m => !selectedMovies.includes(m.id)));
         toast({
             title: `${selectedMovies.length} Movies Deleted`,
             description: `The selected movies have been removed.`,
@@ -179,9 +205,9 @@ export default function ManagePage() {
 
   const handleSave = async () => {
     if (!editingMovie) return;
-    const { id, ...movieData } = editingMovie;
     try {
-        await setDoc(doc(db, "movies", id), movieData);
+        await setDoc(doc(db, "movies", editingMovie.id), editingMovie);
+        setMovies(prev => prev.map(m => m.id === editingMovie.id ? editingMovie : m));
         setEditingMovie(null);
         toast({
             title: "Movie Saved",
@@ -196,11 +222,8 @@ export default function ManagePage() {
   const handleSaveLayout = async () => {
     try {
       const batch = writeBatch(db);
-
-      // Save cycle speed
       const settingsRef = doc(db, "settings", "user-settings");
-      batch.set(settingsRef, { cycleSpeed: localCycleSpeed }, { merge: true });
-      
+      batch.set(settingsRef, { cycleSpeed: cycleSpeed });
       await batch.commit();
       toast({ title: "Layout Saved", description: "Your changes have been saved successfully." });
     } catch (error) {
@@ -320,14 +343,14 @@ Rating: ${movie.rating}`;
               <Input
                 id="cycleSpeed"
                 type="number"
-                value={localCycleSpeed}
-                onChange={(e) => setLocalCycleSpeed(Number(e.target.value))}
+                value={cycleSpeed}
+                onChange={(e) => setCycleSpeed(Number(e.target.value))}
                 className="w-20"
                 min="1"
               />
             </div>
-            {localMovies.length > 0 && <Button onClick={handleSelectAll} variant="outline">
-              {selectedMovies.length === localMovies.length ? 'Deselect All' : 'Select All'}
+            {movies.length > 0 && <Button onClick={handleSelectAll} variant="outline">
+              {selectedMovies.length === movies.length ? 'Deselect All' : 'Select All'}
             </Button>}
             {selectedMovies.length > 0 && (
               <Button onClick={handleDeleteSelected} variant="destructive">
@@ -338,7 +361,7 @@ Rating: ${movie.rating}`;
           <Button onClick={handleSaveLayout}>Save Layout</Button>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {localMovies.map((movie) => (
+          {movies.map((movie) => (
             <MovieCard
               key={movie.id}
               movie={movie}
