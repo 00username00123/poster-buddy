@@ -154,14 +154,14 @@ export function UploadDialog({ onUploadComplete }: UploadDialogProps) {
 
         toast({ title: "Upload Complete", description: `${validGroups.length} movie(s) have been successfully added.` });
         onUploadComplete();
+        setIsUploading(false);
         setOpen(false);
         setFiles(null);
 
     } catch (error: any) {
        console.error("Error uploading movies:", error);
        toast({ title: "Upload Failed", description: error.message || "An unexpected error occurred.", variant: "destructive" });
-    } finally {
-        setIsUploading(false);
+       setIsUploading(false);
     }
   };
 
