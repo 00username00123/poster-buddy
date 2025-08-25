@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -55,12 +56,21 @@ export function UploadDialog() {
           }
           const img = new Image();
           img.onload = () => {
+            const maxWidth = 1200;
+            const maxHeight = 1500;
+            let width = img.width;
+            let height = img.height;
+
+            const ratio = Math.min(maxWidth / width, maxHeight / height);
+            width *= ratio;
+            height *= ratio;
+
             const canvas = document.createElement('canvas');
-            canvas.width = 1200;
-            canvas.height = 1500;
+            canvas.width = width;
+            canvas.height = height;
             const ctx = canvas.getContext('2d');
             if (ctx) {
-              ctx.drawImage(img, 0, 0, 1200, 1500);
+              ctx.drawImage(img, 0, 0, width, height);
               resolve(canvas.toDataURL(file.type));
             } else {
               reject(new Error('Could not get canvas context'));
