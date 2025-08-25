@@ -128,8 +128,8 @@ export function UploadDialog({ onUploadComplete }: UploadDialogProps) {
 
     let moviesAdded = 0;
     try {
-      const uploadPromises = Object.keys(fileGroups).map(async (name) => {
-          const group = fileGroups[name];
+      const uploadPromises = Object.keys(fileGroups).map(async (movieName) => {
+          const group = fileGroups[movieName];
           if (group.poster && group.info) {
              const infoText = await group.info!.text();
              const info: Record<string, string> = {};
@@ -155,7 +155,7 @@ export function UploadDialog({ onUploadComplete }: UploadDialogProps) {
              const logoUrl = group.logo ? await fileToDataUrl(group.logo) : 'https://placehold.co/400x150.png';
 
              const newMovie: UploadedMovie = {
-                 name: info.name || name.replace(/_/g, ' '),
+                 name: info.name || movieName.replace(/_/g, ' '),
                  posterUrl,
                  logoUrl,
                  description: info.description || '',
@@ -164,12 +164,12 @@ export function UploadDialog({ onUploadComplete }: UploadDialogProps) {
                  runtime: info.runtime || '',
                  genre: info.genre || '',
                  rating: info.rating || '',
-                 posterAiHint: `movie poster for ${name}`,
+                 posterAiHint: `movie poster for ${movieName}`,
              };
              
              const result = await addMovie(newMovie);
              if (!result.success) {
-                 throw new Error(result.error || `Failed to upload ${name}`);
+                 throw new Error(result.error || `Failed to upload ${movieName}`);
              }
              moviesAdded++;
           }

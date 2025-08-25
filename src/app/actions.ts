@@ -55,6 +55,16 @@ export async function saveSettings(cycleSpeed: number) {
     }
 }
 
+export async function addMovie(movie: UploadedMovie) {
+    try {
+        await db.collection('movies').add(movie);
+        return { success: true };
+    } catch (error) {
+        console.error("Error adding movie:", error);
+        return { success: false, error: 'Failed to add movie.' };
+    }
+}
+
 export async function updateMovie(movie: Movie) {
     try {
         const movieRef = db.doc(`movies/${movie.id}`);
