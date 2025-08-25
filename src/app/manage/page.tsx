@@ -18,7 +18,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useMovies } from "@/context/MovieContext";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; 
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Movie } from "@/lib/data";
 import { Film, Trash2, Home, Download } from "lucide-react";
@@ -88,7 +88,7 @@ const MovieCard: React.FC<MovieCardProps> = ({
 
 export default function ManagePage() {
   const { movies, updateMovie, deleteMovie, addMovie, cycleSpeed, setCycleSpeed, loading, saveLayout } = useMovies();
-  const [editingMovie, setEditingMovie] = useState<Movie | null>(null);  
+  const [editingMovie, setEditingMovie] = useState<Movie | null>(null);
   const { toast } = useToast();
   const [selectedMovies, setSelectedMovies] = useState<string[]>([]);
 
@@ -99,7 +99,7 @@ export default function ManagePage() {
   const handleCancelEdit = () => {
     setEditingMovie(null);
   };
-  
+
   const handleDelete = (movieToDelete: Movie) => {
     deleteMovie(movieToDelete.id);
     toast({
@@ -125,7 +125,7 @@ export default function ManagePage() {
     };
     reader.readAsDataURL(file);
   };
-  
+
   const handleMovieSelect = useCallback((movieId: string) => {
     setSelectedMovies((prevSelected) =>
       prevSelected.includes(movieId)
@@ -160,10 +160,10 @@ export default function ManagePage() {
       description: `${editingMovie.name} has been updated.`,
     });
   };
-  
+
   const handleSaveLayout = async () => {
     try {
-      await saveLayout({ movies, cycleSpeed });
+      await saveLayout();
       toast({ title: "Layout Saved", description: "Your changes have been saved successfully." });
     } catch (error) {
       console.error("Error saving layout:", error);
@@ -318,5 +318,3 @@ Rating: ${movie.rating}`;
     </>
   );
 }
-
-    

@@ -4,7 +4,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { Movie, UploadedMovie } from '@/lib/data';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, doc, writeBatch, deleteDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, deleteDoc, setDoc, updateDoc, getDoc } from 'firebase/firestore';
 
 interface MovieContextType {
   movies: Movie[];
@@ -14,7 +14,7 @@ interface MovieContextType {
   addMovie: (movie: UploadedMovie) => Promise<void>;
   updateMovie: (id: string, updatedMovie: Partial<Movie>) => Promise<void>;
   deleteMovie: (id: string) => Promise<void>;
-  saveLayout: (data: { movies: Movie[], cycleSpeed: number }) => Promise<void>;
+  saveLayout: () => Promise<void>;
 }
 
 const MovieContext = createContext<MovieContextType | undefined>(undefined);
@@ -56,9 +56,9 @@ export const MovieProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   }, []);
 
   const addMovie = async (movie: UploadedMovie) => {
-    const newMovie = { ...movie, id: crypto.randomUUID() };
-    const movieRef = doc(db, "movies", newMovie.id);
-    await setDoc(movieRef, movie); 
+    const newId = crypto.randomUUID();
+    const movieRef = doc(db, "movies", newId);
+    await setDoc(movieRef, movie);
   };
 
   const updateMovie = async (id: string, updatedMovie: Partial<Movie>) => {
@@ -70,21 +70,26 @@ export const MovieProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     const movieRef = doc(db, "movies", id);
     await deleteDoc(movieRef);
   };
-  
-  const saveLayout = async ({ movies: layoutMovies, cycleSpeed: layoutSpeed }: { movies: Movie[], cycleSpeed: number }) => {
-    const batch = writeBatch(db);
 
-    layoutMovies.forEach(movie => {
-      const { id, ...movieData } = movie;
-      const movieRef = doc(db, "movies", id);
-      batch.set(movieRef, movieData);
-    });
-    
-    const settingsRef = doc(db, "settings", "user-settings");
-    batch.set(settingsRef, { cycleSpeed: layoutSpeed });
+  const saveLayout = async () => {
+    try {
+      // Save cycle speed
+      const settingsRef = doc(db, "settings", "user-settings");
+      await setDoc(settingsRef, { cycleSpeed: cycleSpeed }, { merge: true });
 
-    await batch.commit();
+      // The onSnapshot listener already keeps the local `movies` state
+      // in sync with Firestore, so we only need to update the documents
+      // that have actually changed (e.g., through the edit form).
+      // The `updateMovie` function already handles this.
+      // So, just saving the cycle speed is enough here.
+      console.log("Layout saved successfully (Cycle Speed).");
+
+    } catch (error) {
+      console.error("Error saving layout:", error);
+      throw error;
+    }
   };
+
 
   return (
     <MovieContext.Provider value={{ movies, cycleSpeed, loading, setCycleSpeed, addMovie, updateMovie, deleteMovie, saveLayout }}>
@@ -100,5 +105,3 @@ export const useMovies = () => {
   }
   return context;
 };
-
-    
