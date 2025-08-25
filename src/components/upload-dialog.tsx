@@ -37,12 +37,12 @@ export function UploadDialog({ onUploadComplete }: UploadDialogProps) {
 
   const handleOpenChange = (isOpen: boolean) => {
     if (isUploading && !isOpen) {
-      // Prevent closing while uploading
-      return;
+      return; // Prevent closing while an upload is in progress
     }
     setOpen(isOpen);
     if (!isOpen) {
-      // Reset state when dialog is closed
+      // Always reset state when the dialog closes.
+      // This is the single source of truth for resetting.
       setIsUploading(false);
       setFiles(null);
     }
@@ -123,7 +123,7 @@ export function UploadDialog({ onUploadComplete }: UploadDialogProps) {
         
         if (validGroups.length === 0) {
             toast({ title: "No Valid Movie Sets Found", description: "Ensure files are named correctly (e.g., moviename_poster.jpg, moviename_info.txt).", variant: "destructive" });
-            setIsUploading(false);
+            setIsUploading(false); // Manually reset on validation failure
             return;
         }
         
@@ -138,12 +138,16 @@ export function UploadDialog({ onUploadComplete }: UploadDialogProps) {
                 const match = line.match(/^([^:]+):\s*(.*)$/);
                 if (match) {
                     currentKey = match[1].toLowerCase().trim().replace(/\s+/g, '');
-                    info[currentKey] = match[2].trim();
+                    if (currentKey === 'description') {
+                        descriptionValue = match[2].trim();
+                    } else {
+                        info[currentKey] = match[2].trim();
+                    }
                 } else if (currentKey === 'description') {
-                    info.description += `\n${line.trim()}`;
+                    descriptionValue += `\n${line.trim()}`;
                 }
             });
-            Object.keys(info).forEach(key => info[key] = info[key].trim());
+            info.description = descriptionValue.trim();
 
             const posterUrl = await resizePoster(group.poster!);
             const logoUrl = group.logo ? await fileToDataUrl(group.logo) : 'https://placehold.co/400x150.png';
@@ -168,12 +172,12 @@ export function UploadDialog({ onUploadComplete }: UploadDialogProps) {
 
         toast({ title: "Upload Complete", description: `${validGroups.length} movie(s) have been successfully added.` });
         onUploadComplete();
-        setOpen(false); // This will trigger onOpenChange, which resets the state
+        setOpen(false); // This will trigger onOpenChange which resets the state.
 
     } catch (error: any) {
        console.error("Error uploading movies:", error);
        toast({ title: "Upload Failed", description: error.message || "An unexpected error occurred.", variant: "destructive" });
-       setIsUploading(false);
+       setIsUploading(false); // Manually reset on error
     }
   };
 
