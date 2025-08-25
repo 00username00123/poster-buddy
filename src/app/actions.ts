@@ -5,13 +5,12 @@ import { initializeApp, getApps, getApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { Movie, UploadedMovie } from '@/lib/data';
 
-const firebaseConfig = {
-  projectId: 'posterscript',
-  storageBucket: 'posterscript.appspot.com',
-};
+// Explicitly define the projectId for initialization.
+const projectId = 'posterscript';
 
+// Initialize Firebase Admin SDK if not already initialized.
 if (!getApps().length) {
-  initializeApp(firebaseConfig);
+  initializeApp({ projectId });
 }
 
 const db = getFirestore();
