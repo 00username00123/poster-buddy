@@ -1,31 +1,17 @@
 
 'use server';
 
-import { initializeApp, getApps, cert } from 'firebase-admin/app';
+import { initializeApp, getApps } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { Movie, UploadedMovie } from '@/lib/data';
 
-const apps = getApps();
-if (!apps.length) {
-    try {
-        // This is a secure way to initialize on the server.
-        // The service account key is a JSON string stored in an environment variable.
-        // It's not exposed to the client.
-        if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
-             initializeApp({
-                credential: cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY)),
-                projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-            });
-        } else {
-            // Fallback for local development or environments where the full key isn't set.
-            // This might have limited permissions.
-            initializeApp({
-                projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-            });
-        }
-    } catch (e) {
-        console.error('Firebase admin initialization error', e);
-    }
+// Initialize Firebase Admin SDK
+if (!getApps().length) {
+  initializeApp({
+    // projectId is used for local development and will be automatically
+    // inferred in the App Hosting environment.
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  });
 }
 
 const db = getFirestore();
