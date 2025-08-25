@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Upload } from "lucide-react";
 import type { UploadedMovie } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
-import { getFirestore, collection, addDoc, writeBatch } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, writeBatch, doc } from 'firebase/firestore';
 import { app } from '@/lib/firebase';
 
 interface UploadDialogProps {
@@ -224,3 +224,5 @@ export function UploadDialog({ onUploadComplete }: UploadDialogProps) {
     </Dialog>
   );
 }
+
+    

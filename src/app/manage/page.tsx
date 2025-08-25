@@ -23,7 +23,7 @@ import { Movie } from "@/lib/data";
 import { Film, Trash2, Home, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { UploadDialog } from "@/components/upload-dialog";
-import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, writeBatch } from "firebase/firestore";
+import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc, writeBatch, getDoc } from "firebase/firestore";
 import { app } from "@/lib/firebase";
 
 interface MovieCardProps {
@@ -106,7 +106,7 @@ export default function ManagePage() {
 
       const [moviesSnapshot, settingsDoc] = await Promise.all([
         getDocs(moviesCollection),
-        doc(settingsDocRef).get(),
+        getDoc(settingsDocRef),
       ]);
 
       const fetchedMovies = moviesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Movie));
@@ -397,3 +397,5 @@ Rating: ${movie.rating}`;
     </>
   );
 }
+
+    
