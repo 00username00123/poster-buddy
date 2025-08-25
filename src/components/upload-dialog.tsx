@@ -17,8 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Upload } from "lucide-react";
 import type { UploadedMovie } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
-import { getFirestore, collection, addDoc, writeBatch, doc } from 'firebase/firestore';
-import { app } from '@/lib/firebase';
+import { addMovie } from '@/app/actions';
 
 interface UploadDialogProps {
   onUploadComplete: () => void;
@@ -128,10 +127,7 @@ export function UploadDialog({ onUploadComplete }: UploadDialogProps) {
 
     let moviesAdded = 0;
     try {
-      const db = getFirestore(app);
-      const batch = writeBatch(db);
-
-      for (const name in fileGroups) {
+      const uploadPromises = Object.keys(fileGroups).map(async (name) => {
           const group = fileGroups[name];
           if (group.poster && group.info) {
              const infoText = await group.info!.text();
@@ -170,14 +166,17 @@ export function UploadDialog({ onUploadComplete }: UploadDialogProps) {
                  posterAiHint: `movie poster for ${name}`,
              };
              
-             const docRef = doc(collection(db, "movies"));
-             batch.set(docRef, newMovie);
+             const result = await addMovie(newMovie);
+             if (!result.success) {
+                 throw new Error(result.error || `Failed to upload ${name}`);
+             }
              moviesAdded++;
           }
-      }
+      });
+
+      await Promise.all(uploadPromises);
 
       if(moviesAdded > 0){
-        await batch.commit();
         toast({ title: "Upload Complete", description: `${moviesAdded} movie(s) have been added.` });
         onUploadComplete();
       } else {
@@ -224,5 +223,3 @@ export function UploadDialog({ onUploadComplete }: UploadDialogProps) {
     </Dialog>
   );
 }
-
-    
