@@ -21,6 +21,10 @@ async function getAuthToken() {
     // Explicitly use the service account key from the environment variable.
     const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
 
+    if (!serviceAccount.client_email || !serviceAccount.private_key) {
+        throw new Error('Service account key is missing client_email or private_key.');
+    }
+
     const auth = new GoogleAuth({
         credentials: {
             client_email: serviceAccount.client_email,
