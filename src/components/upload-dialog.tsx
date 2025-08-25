@@ -105,23 +105,27 @@ export function UploadDialog({ onUploadComplete }: UploadDialogProps) {
           if (group.poster && group.info) {
              const infoText = await group.info!.text();
              const info: Record<string, string> = {};
-             let descriptionParts: string[] = [];
-             
              const lines = infoText.split('\n');
-             let currentKey = 'description';
-
+             let descriptionAccumulator = '';
+             let inDescription = false;
+             
              lines.forEach(line => {
-                 const parts = line.split(':');
-                 if (parts.length > 1) {
-                     const key = parts[0].toLowerCase().replace(/\s/g, '');
-                     const value = parts.slice(1).join(':').trim();
+                 const match = line.match(/^([^:]+):\s*(.*)$/);
+                 if (match) {
+                     inDescription = false;
+                     const key = match[1].toLowerCase().trim().replace(/\s/g, '');
+                     const value = match[2].trim();
                      info[key] = value;
-                     if(key === 'rating') currentKey = 'post-rating';
-                 } else if (line.trim().length > 0 && currentKey === 'description') {
-                   descriptionParts.push(line.trim());
+                     if(key === 'description') {
+                         descriptionAccumulator = value;
+                         inDescription = true;
+                     }
+                 } else if (inDescription) {
+                     descriptionAccumulator += `\n${line}`;
                  }
              });
-             info.description = descriptionParts.join('\n');
+             info.description = descriptionAccumulator.trim();
+
 
              const posterUrl = await resizePoster(group.poster!);
              const logoUrl = group.logo ? await fileToDataUrl(group.logo) : 'https://placehold.co/400x150.png';
@@ -150,7 +154,7 @@ export function UploadDialog({ onUploadComplete }: UploadDialogProps) {
         toast({ title: "Upload Complete", description: `${moviesAdded} movie(s) have been added.` });
         onUploadComplete();
       } else {
-        toast({ title: "Upload Info", description: "No valid movie sets found to upload.", variant: "default" });
+        toast({ title: "Upload Info", description: "No valid movie sets found to upload. Ensure files are named correctly (e.g., moviename_poster.jpg, moviename_info.txt).", variant: "default" });
       }
 
     } catch (error: any) {
