@@ -13,8 +13,13 @@ async function getAuthToken() {
     if (authToken) {
         return authToken;
     }
+
+    if (!process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+        throw new Error('FIREBASE_SERVICE_ACCOUNT_KEY environment variable is not set.');
+    }
+    
     // Explicitly use the service account key from the environment variable.
-    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY!);
+    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
 
     const auth = new GoogleAuth({
         credentials: {
@@ -104,7 +109,7 @@ export async function getMoviesAndSettings() {
         
         return { movies, cycleSpeed };
     } catch (error: any) {
-        console.error("Error in getMoviesAndSettings:", error);
+        console.error("Error in getMoviesAndSettings:", error.message);
         return { error: error.message || 'Failed to load data.' };
     }
 }
@@ -131,12 +136,12 @@ export async function saveSettings(cycleSpeed: number) {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(JSON.stringify(error));
+            throw new Error(error.error.message);
         }
 
         return { success: true };
     } catch (error: any) {
-        console.error("Error saving settings:", error);
+        console.error("Error saving settings:", error.message);
         return { success: false, error: error.message || 'Failed to save settings.' };
     }
 }
@@ -161,11 +166,11 @@ export async function addMovie(movie: UploadedMovie) {
         
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(JSON.stringify(error));
+            throw new Error(error.error.message);
         }
         return { success: true };
     } catch (error: any) {
-        console.error("Error adding movie:", error);
+        console.error("Error adding movie:", error.message);
         return { success: false, error: error.message || 'Failed to add movie.' };
     }
 }
@@ -195,11 +200,11 @@ export async function updateMovie(movie: Movie) {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(JSON.stringify(error));
+            throw new Error(error.error.message);
         }
         return { success: true };
     } catch (error: any) {
-        console.error("Error updating movie:", error);
+        console.error("Error updating movie:", error.message);
         return { success: false, error: error.message || 'Failed to update movie.' };
     }
 }
@@ -216,11 +221,11 @@ export async function deleteMovie(movieId: string) {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(JSON.stringify(error));
+            throw new Error(error.error.message);
         }
         return { success: true };
     } catch (error: any) {
-        console.error("Error deleting movie:", error);
+        console.error("Error deleting movie:", error.message);
         return { success: false, error: error.message || 'Failed to delete movie.' };
     }
 }
@@ -245,11 +250,11 @@ export async function deleteSelectedMovies(movieIds: string[]) {
         
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(JSON.stringify(error));
+            throw new Error(error.error.message);
         }
         return { success: true };
     } catch (error: any) {
-        console.error("Error deleting movies:", error);
+        console.error("Error deleting movies:", error.message);
         return { success: false, error: error.message || 'Failed to delete selected movies.' };
     }
 }
