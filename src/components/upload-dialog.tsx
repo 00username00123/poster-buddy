@@ -33,6 +33,49 @@ export function UploadDialog({ onUploadComplete }: UploadDialogProps) {
     setFiles(event.target.files);
   };
 
+  const fileToDataUrl = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          resolve(event.target.result as string);
+        } else {
+          reject(new Error("Failed to read file."));
+        }
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  const resizePoster = (file: File): Promise<string> => {
+      return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+              const img = new Image();
+              img.onload = () => {
+                  const canvas = document.createElement('canvas');
+                  const MAX_WIDTH = 600;
+                  const scaleSize = MAX_WIDTH / img.width;
+                  canvas.width = MAX_WIDTH;
+                  canvas.height = img.height * scaleSize;
+
+                  const ctx = canvas.getContext('2d');
+                  if (!ctx) {
+                      return reject(new Error('Failed to get canvas context'));
+                  }
+                  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                  
+                  resolve(canvas.toDataURL('image/jpeg')); 
+              };
+              img.onerror = reject;
+              img.src = event.target?.result as string;
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+      });
+  };
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!files) return;
@@ -53,20 +96,6 @@ export function UploadDialog({ onUploadComplete }: UploadDialogProps) {
         fileGroups[name][type] = file;
     }
     
-    const fileToDataUrl = (file: File): Promise<string> => {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          if (event.target?.result) {
-            resolve(event.target.result as string);
-          } else {
-            reject(new Error("Failed to read file."));
-          }
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-    }
 
     let moviesAdded = 0;
     try {
@@ -93,7 +122,7 @@ export function UploadDialog({ onUploadComplete }: UploadDialogProps) {
              });
              info.description = descriptionParts.join('\n');
 
-             const posterUrl = await fileToDataUrl(group.poster!);
+             const posterUrl = await resizePoster(group.poster!);
              const logoUrl = group.logo ? await fileToDataUrl(group.logo) : 'https://placehold.co/400x150.png';
 
              const newMovie: UploadedMovie = {
