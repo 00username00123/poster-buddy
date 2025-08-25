@@ -2,19 +2,15 @@
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
-import { Movie, UploadedMovie } from '@/lib/data';
+import type { Movie } from '@/lib/data';
 import { db } from '@/lib/firebase';
-import { collection, onSnapshot, doc, deleteDoc, setDoc, updateDoc, writeBatch, getDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, setDoc } from 'firebase/firestore';
 
 interface MovieContextType {
   movies: Movie[];
   cycleSpeed: number;
   loading: boolean;
-  setCycleSpeed: (speed: number) => void;
-  addMovie: (movie: UploadedMovie) => Promise<void>;
-  updateMovie: (id: string, updatedMovie: Partial<Movie>) => Promise<void>;
-  deleteMovie: (id: string) => Promise<void>;
-  saveLayout: (moviesToSave: Movie[], newCycleSpeed: number) => Promise<void>;
+  setCycleSpeed: React.Dispatch<React.SetStateAction<number>>; // Allow direct setting from manage page
 }
 
 const MovieContext = createContext<MovieContextType | undefined>(undefined);
@@ -26,11 +22,12 @@ export const MovieProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   useEffect(() => {
     setLoading(true);
+
     const moviesCollection = collection(db, 'movies');
     const unsubscribeMovies = onSnapshot(moviesCollection, (snapshot) => {
       const fetchedMovies = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Movie));
       setMovies(fetchedMovies);
-      setLoading(false);
+      if (loading) setLoading(false); // Only set loading to false on initial load
     }, (error) => {
       console.error("Error fetching movies from Firestore:", error);
       setLoading(false);
@@ -52,62 +49,18 @@ export const MovieProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       unsubscribeMovies();
       unsubscribeSettings();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const addMovie = useCallback(async (movie: UploadedMovie) => {
-    const newId = crypto.randomUUID();
-    const movieRef = doc(db, "movies", newId);
-    await setDoc(movieRef, movie);
-  }, []);
-
-  const updateMovie = useCallback(async (id: string, updatedMovie: Partial<Movie>) => {
-    // Optimistic update
-    setMovies(prevMovies => prevMovies.map(m => m.id === id ? { ...m, ...updatedMovie } : m));
-    const movieRef = doc(db, "movies", id);
-    try {
-      await updateDoc(movieRef, updatedMovie);
-    } catch (error) {
-      console.error("Failed to update movie, rolling back:", error);
-      // NOTE: A more robust rollback would re-fetch the original state
-    }
-  }, []);
-
-  const deleteMovie = useCallback(async (id: string) => {
-    // Optimistic update
-    setMovies(prevMovies => prevMovies.filter(m => m.id !== id));
-    const movieRef = doc(db, "movies", id);
-    await deleteDoc(movieRef);
-  }, []);
-
-  const saveLayout = useCallback(async (moviesToSave: Movie[], newCycleSpeed: number) => {
-    // Optimistic UI updates
-    setMovies(moviesToSave);
-    setCycleSpeed(newCycleSpeed);
-
-    try {
-      const batch = writeBatch(db);
-
-      // Save cycle speed
-      const settingsRef = doc(db, "settings", "user-settings");
-      batch.set(settingsRef, { cycleSpeed: newCycleSpeed }, { merge: true });
-
-      // Save all movies
-      moviesToSave.forEach(movie => {
-        const movieRef = doc(db, "movies", movie.id);
-        batch.set(movieRef, movie);
-      });
-      
-      await batch.commit();
-    } catch (error) {
-      console.error("Error saving layout to Firestore:", error);
-      // NOTE: Here you could implement a rollback logic or notify the user
-      throw error;
-    }
-  }, []);
-
+  const contextValue = {
+    movies,
+    cycleSpeed,
+    loading,
+    setCycleSpeed
+  };
 
   return (
-    <MovieContext.Provider value={{ movies, cycleSpeed, loading, setCycleSpeed, addMovie, updateMovie, deleteMovie, saveLayout }}>
+    <MovieContext.Provider value={contextValue}>
       {children}
     </MovieContext.Provider>
   );

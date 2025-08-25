@@ -23,6 +23,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Movie } from "@/lib/data";
 import { Film, Trash2, Home, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { db } from "@/lib/firebase";
+import { writeBatch, doc, deleteDoc, setDoc } from 'firebase/firestore';
 
 interface MovieCardProps {
   movie: Movie;
@@ -87,7 +89,7 @@ const MovieCard: React.FC<MovieCardProps> = ({
 
 
 export default function ManagePage() {
-  const { movies: contextMovies, updateMovie, deleteMovie, cycleSpeed: contextCycleSpeed, loading, saveLayout } = useMovies();
+  const { movies: contextMovies, cycleSpeed: contextCycleSpeed, loading, addMovie, updateMovie: contextUpdateMovie, deleteMovie: contextDeleteMovie } = useMovies();
   const [localMovies, setLocalMovies] = useState<Movie[]>([]);
   const [localCycleSpeed, setLocalCycleSpeed] = useState<number>(7);
   const [editingMovie, setEditingMovie] = useState<Movie | null>(null);
@@ -109,14 +111,20 @@ export default function ManagePage() {
     setEditingMovie(null);
   };
 
-  const handleDelete = (movieToDelete: Movie) => {
-    deleteMovie(movieToDelete.id);
-    toast({
-      title: "Movie Deleted",
-      description: `${movieToDelete.name} has been removed.`,
-      variant: "destructive",
-    });
+  const handleDelete = async (movieToDelete: Movie) => {
+    try {
+        await deleteDoc(doc(db, "movies", movieToDelete.id));
+        toast({
+            title: "Movie Deleted",
+            description: `${movieToDelete.name} has been removed.`,
+            variant: "destructive",
+        });
+    } catch (error) {
+        console.error("Error deleting movie:", error);
+        toast({ title: "Delete Failed", description: "An error occurred while deleting the movie.", variant: "destructive" });
+    }
   };
+
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     if (!editingMovie) return;
@@ -151,29 +159,49 @@ export default function ManagePage() {
     }
   };
 
-  const handleDeleteSelected = () => {
-    selectedMovies.forEach(movieId => deleteMovie(movieId));
-    toast({
-      title: `${selectedMovies.length} Movies Deleted`,
-      description: `The selected movies have been removed.`,
+  const handleDeleteSelected = async () => {
+    const batch = writeBatch(db);
+    selectedMovies.forEach(movieId => {
+        batch.delete(doc(db, "movies", movieId));
     });
-    setSelectedMovies([]);
+    try {
+        await batch.commit();
+        toast({
+            title: `${selectedMovies.length} Movies Deleted`,
+            description: `The selected movies have been removed.`,
+        });
+        setSelectedMovies([]);
+    } catch (error) {
+        console.error("Error deleting selected movies:", error);
+        toast({ title: "Delete Failed", description: "An error occurred while deleting the selected movies.", variant: "destructive" });
+    }
   };
 
   const handleSave = async () => {
     if (!editingMovie) return;
-    await updateMovie(editingMovie.id, editingMovie);
-    setLocalMovies(prev => prev.map(m => m.id === editingMovie.id ? editingMovie : m));
-    setEditingMovie(null);
-    toast({
-      title: "Movie Saved",
-      description: `${editingMovie.name} has been updated.`,
-    });
+    const { id, ...movieData } = editingMovie;
+    try {
+        await setDoc(doc(db, "movies", id), movieData);
+        setEditingMovie(null);
+        toast({
+            title: "Movie Saved",
+            description: `${editingMovie.name} has been updated.`,
+        });
+    } catch (error) {
+        console.error("Error saving movie:", error);
+        toast({ title: "Save Failed", description: "An error occurred while saving the movie.", variant: "destructive" });
+    }
   };
 
   const handleSaveLayout = async () => {
     try {
-      await saveLayout(localMovies, localCycleSpeed);
+      const batch = writeBatch(db);
+
+      // Save cycle speed
+      const settingsRef = doc(db, "settings", "user-settings");
+      batch.set(settingsRef, { cycleSpeed: localCycleSpeed }, { merge: true });
+      
+      await batch.commit();
       toast({ title: "Layout Saved", description: "Your changes have been saved successfully." });
     } catch (error) {
       console.error("Error saving layout:", error);
